@@ -39,11 +39,11 @@ to both Vault and the acme plugin:
 
 ```sh
 $ sudo setcap cap_ipc_lock=+ep $(readlink -f $(which vault))
-$ sudo setcap cap_ipc_lock=+ep /vault/plugins/acme-plugin
+$ sudo setcap cap_ipc_lock=+ep /vault/plugins/vault-plugin-secrets-acme
 ```
 
 After setting [`plugin_directory`](https://www.vaultproject.io/docs/configuration/#plugin_directory)
-and setting the correct shasum in Vault (`vault write sys/plugins/catalog/secret/acme sha_256=$(sha256sum acme-plugin) command=acme-plugin`)
+and setting the correct shasum in Vault (`vault write sys/plugins/catalog/secret/acme sha_256=$(sha256sum vault-plugin-secrets-acme) command=vault-plugin-secrets-acme`)
 you can mount the plugin like any other: `vault secrets enable -path acme -plugin-name acme plugin`.
 
 
