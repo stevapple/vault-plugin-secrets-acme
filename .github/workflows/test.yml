@@ -16,10 +16,15 @@ concurrency:
 
 jobs:
   test:
-    name: Run tests
+    name: Run tests (Vault ${{ matrix.vault }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Newest of each major Vault line still in use.
+        vault: ["1.21.4", "2.1.0"]
     env:
-      VAULT_VERSION: "1.20.0"
+      VAULT_VERSION: ${{ matrix.vault }}
     steps:
     - name: Checkout
       uses: actions/checkout@v7
