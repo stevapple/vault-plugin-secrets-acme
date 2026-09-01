@@ -15,12 +15,7 @@ import (
 )
 
 func TestValidateNames(t *testing.T) {
-	config := logical.TestBackendConfig()
-	config.StorageView = &logical.InmemStorage{}
-	b, err := Factory("test")(context.Background(), config)
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, b := getTestBackend(t)
 
 	tcases := []struct {
 		R        role
@@ -101,7 +96,29 @@ func TestValidateNames(t *testing.T) {
 
 }
 
+// getTestBackend builds an in-memory backend without any external
+// dependency. Use it for tests that only exercise storage and request
+// handling and never talk to an ACME server.
+func getTestBackend(t *testing.T) (*logical.BackendConfig, logical.Backend) {
+	t.Helper()
+
+	config := logical.TestBackendConfig()
+	config.StorageView = &logical.InmemStorage{}
+	b, err := Factory("test")(context.Background(), config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return config, b
+}
+
+// getTestConfig starts a pebble ACME test server alongside the backend
+// returned by getTestBackend. Only tests that actually contact an ACME
+// server (registering an account, issuing a certificate, solving a
+// challenge) need it.
 func getTestConfig(t *testing.T) (*logical.BackendConfig, logical.Backend) {
+	t.Helper()
+
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
@@ -146,14 +163,7 @@ func getTestConfig(t *testing.T) (*logical.BackendConfig, logical.Backend) {
 	})
 	time.Sleep(1 * time.Second)
 
-	config := logical.TestBackendConfig()
-	config.StorageView = &logical.InmemStorage{}
-	b, err := Factory("test")(context.Background(), config)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return config, b
+	return getTestBackend(t)
 }
 
 func createAccount(t *testing.T, b logical.Backend, storage logical.Storage) {
