@@ -3,6 +3,8 @@ package acme
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
 	"io"
 	"net"
 	"net/http"
@@ -93,7 +95,28 @@ func checkCreatingCerts(t *testing.T, b logical.Backend, storage logical.Storage
 	// endpoint twice
 	require.Equal(t, first.Data, second.Data)
 
+	// The lease spans the certificate it carries.
+	assertLeaseSpansCertificate(t, first)
+	assertLeaseSpansCertificate(t, second)
+
 	return first, second
+}
+
+// assertLeaseSpansCertificate checks that both the lease's TTL and its MaxTTL
+// run to the certificate's NotAfter, within a minute for the time the request
+// took.
+func assertLeaseSpansCertificate(t *testing.T, resp *logical.Response) {
+	t.Helper()
+
+	block, _ := pem.Decode([]byte(resp.Data["cert"].(string)))
+	require.NotNil(t, block)
+	leaf, err := x509.ParseCertificate(block.Bytes)
+	require.NoError(t, err)
+	require.NotNil(t, resp.Secret)
+
+	validity := time.Until(leaf.NotAfter).Seconds()
+	require.InDelta(t, validity, resp.Secret.TTL.Seconds(), 60)
+	require.InDelta(t, validity, resp.Secret.MaxTTL.Seconds(), 60)
 }
 
 func checkRenewingCert(t *testing.T, b logical.Backend, storage logical.Storage, secret *logical.Secret) {

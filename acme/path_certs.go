@@ -164,7 +164,13 @@ func (b *backend) getSecret(accountPath, cacheKey string, cert *certificate.Reso
 			"cache_key": cacheKey,
 		})
 
-	s.Secret.MaxTTL = time.Until(notAfter)
+	// Both, so the lease spans the certificate it carries. With only MaxTTL
+	// set the lease falls back to the mount's default TTL and expires long
+	// before the certificate does, which strands the certificate with no lease
+	// left to renew it.
+	validity := time.Until(notAfter)
+	s.Secret.TTL = validity
+	s.Secret.MaxTTL = validity
 
 	return s, nil
 }
