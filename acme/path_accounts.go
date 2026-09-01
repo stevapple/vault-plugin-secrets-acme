@@ -50,7 +50,7 @@ func pathAccounts(b *backend) []*framework.Path {
 					AllowedValues: keyTypes,
 				},
 				// TODO(remi): We should have a list of those so we can request certs
-				// for domains registred to different providers
+				// for domains registered to different providers
 				"provider": {
 					Type: framework.TypeString,
 				},
@@ -179,7 +179,7 @@ func (b *backend) accountWrite(ctx context.Context, req *logical.Request, data *
 		b.Logger().Info("Updating account")
 		reg, err = client.Registration.UpdateRegistration(options)
 	} else {
-		b.Logger().Info("Registring new account")
+		b.Logger().Info("Registering new account")
 		reg, err = client.Registration.Register(options)
 	}
 
@@ -237,7 +237,7 @@ func (b *backend) accountDelete(ctx context.Context, req *logical.Request, _ *fr
 
 	client, err := a.getClient()
 	if err != nil {
-		return nil, fmt.Errorf("failed to instanciate new client: %w", err)
+		return nil, fmt.Errorf("failed to instantiate new client: %w", err)
 	}
 
 	if err = client.Registration.DeleteRegistration(); err != nil {

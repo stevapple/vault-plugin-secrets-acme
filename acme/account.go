@@ -31,7 +31,7 @@ func (a *account) GetEmail() string {
 	return a.Email
 }
 
-// GetRegistration returns the Email of the user
+// GetRegistration returns the registration of the user
 func (a *account) GetRegistration() *registration.Resource {
 	return a.Registration
 }
