@@ -33,6 +33,28 @@ func pathCerts(b *backend) *framework.Path {
 			"alternative_names": {
 				Type: framework.TypeCommaStringSlice,
 			},
+			"format": {
+				Type:          framework.TypeString,
+				Default:       formatPEM,
+				AllowedValues: allowedFormats(),
+			},
+			"pkcs12_password": {
+				Type:    framework.TypeString,
+				Default: defaultKeystorePassword,
+			},
+			"pkcs12_encoder": {
+				Type:          framework.TypeString,
+				Default:       pkcs12EncoderModern2026,
+				AllowedValues: allowedPKCS12Encoders(),
+			},
+			"jks_password": {
+				Type:    framework.TypeString,
+				Default: defaultKeystorePassword,
+			},
+			"jks_private_key_alias": {
+				Type:    framework.TypeString,
+				Default: defaultJKSAlias,
+			},
 		},
 		ExistenceCheck: b.pathExistenceCheck,
 		Operations: map[logical.Operation]framework.OperationHandler{
@@ -46,6 +68,17 @@ func pathCerts(b *backend) *framework.Path {
 func (b *backend) certCreate(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	if err := data.Validate(); err != nil {
 		return nil, err
+	}
+
+	opts := bundleOptions{
+		Format:         data.Get("format").(string),
+		PKCS12Password: data.Get("pkcs12_password").(string),
+		PKCS12Encoder:  data.Get("pkcs12_encoder").(string),
+		JKSPassword:    data.Get("jks_password").(string),
+		JKSAlias:       data.Get("jks_private_key_alias").(string),
+	}
+	if err := opts.validate(); err != nil {
+		return logical.ErrorResponse(err.Error()), nil
 	}
 
 	names := getNames(data)
@@ -110,7 +143,7 @@ func (b *backend) certCreate(ctx context.Context, req *logical.Request, data *fr
 		}
 	}
 
-	s, err := b.getSecret(accountPath, rolePath, cacheKey, cert)
+	s, err := b.getSecret(accountPath, rolePath, cacheKey, cert, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create the secret: %v", err)
 	}
@@ -126,6 +159,12 @@ func getCacheKey(r *role, data *framework.FieldData) (string, error) {
 
 	d := make(map[string]interface{})
 	for key := range data.Schema {
+		// How the response is rendered does not change which certificate is
+		// issued, so it must not split the cache: two requests differing only
+		// in format would otherwise each order one of their own.
+		if renderingFields[key] {
+			continue
+		}
 		d[key] = data.Get(key)
 	}
 	dataPath, err := json.Marshal(d)
@@ -139,7 +178,15 @@ func getCacheKey(r *role, data *framework.FieldData) (string, error) {
 	return fmt.Sprintf("%s%x", cachePrefix, hashedKey), nil
 }
 
-func (b *backend) getSecret(accountPath, rolePath, cacheKey string, cert *certificate.Resource) (*logical.Response, error) {
+var renderingFields = map[string]bool{
+	"format":                true,
+	"pkcs12_password":       true,
+	"pkcs12_encoder":        true,
+	"jks_password":          true,
+	"jks_private_key_alias": true,
+}
+
+func (b *backend) getSecret(accountPath, rolePath, cacheKey string, cert *certificate.Resource, opts bundleOptions) (*logical.Response, error) {
 	// Use the helper to create the secret
 	b.Logger().Debug("Preparing response")
 	certs, err := certcrypto.ParsePEMBundle(cert.Certificate)
@@ -150,18 +197,20 @@ func (b *backend) getSecret(accountPath, rolePath, cacheKey string, cert *certif
 	notBefore := certs[0].NotBefore
 	notAfter := certs[0].NotAfter
 
+	data, err := renderCert(cert, opts)
+	if err != nil {
+		return nil, err
+	}
+	data["domain"] = firstDomain(cert.Domains)
+	data["domains"] = cert.Domains
+	data["url"] = cert.CertStableURL
+	data["not_before"] = notBefore.String()
+	data["not_after"] = notAfter.String()
+
 	s := b.Secret(secretCertType).Response(
-		map[string]interface{}{
-			"domain":      firstDomain(cert.Domains),
-			"domains":     cert.Domains,
-			"url":         cert.CertStableURL,
-			"private_key": string(cert.PrivateKey),
-			"cert":        string(cert.Certificate),
-			"issuer_cert": string(cert.IssuerCertificate),
-			"not_before":  notBefore.String(),
-			"not_after":   notAfter.String(),
-		},
-		// this will be used when revoking the certificate
+		data,
+		// this will be used when revoking the certificate, so it holds the PEM
+		// regardless of how the response above was rendered
 		map[string]interface{}{
 			"account":   accountPath,
 			"role":      rolePath,

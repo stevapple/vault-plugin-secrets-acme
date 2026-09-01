@@ -131,6 +131,11 @@ on the request and the role definition.
 - `role` `(string: <required>)` - The role to use to create the certificate.
 - `common_name` `(string: <required>)` - The Common Name to request for the certificate.
 - `alternative_names` `(list: [])` - A list of Subject Alternative Names to request for the certificate.
+- `format` `(string: "pem")` - Specifies the format for the returned data. `pem` returns the certificate, the issuer and the private key as separate PEM fields. `pkcs12_bundle` and `jks_bundle` return a base64 encoded archive in `cert` holding the certificate, the chain and the private key together, and omit `private_key` and `issuer_cert`. `jks_bundle` is provided for compatibility with legacy systems; prefer `pkcs12_bundle` where you have the choice.
+- `pkcs12_encoder` `(string: "modern2026")` - Which encoding `pkcs12_bundle` uses. `modern2026` uses PBMAC1 for integrity; `modern2023` is the older scheme, for consumers that cannot read PBMAC1.
+- `pkcs12_password` `(string: "changeit")` - Password for the PKCS#12 archive. The default is the conventional one and is not a secret; set a real password.
+- `jks_password` `(string: "changeit")` - Password for the JKS archive, guarding both the keystore and the key entry within it. The default is the conventional one and is not a secret.
+- `jks_private_key_alias` `(string: "1")` - Alias of the private key entry in the JKS archive. Case is preserved.
 
 ### Response
 

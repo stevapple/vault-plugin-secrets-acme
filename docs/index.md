@@ -212,6 +212,46 @@ Two settings decide whether this is safe:
   mount's `max_lease_ttl`, so tune that to at least the certificate lifetime if
   you want lease listings to stay meaningful.
 
+## Keystore formats
+
+Certificates are returned as PEM by default. For a consumer that wants a
+keystore rather than three PEM blocks — a JVM service, or anything that reads
+PKCS#12 — ask for one with `format`:
+
+```text
+$ vault write acme/certs/lenstra.fr \
+    common_name=www.lenstra.fr \
+    format=pkcs12_bundle \
+    pkcs12_password=... 
+```
+
+The `cert` field then holds the archive, base64 encoded, with the certificate,
+its chain and the private key inside it; `private_key` and `issuer_cert` are
+omitted, having nothing left to say. `jks_bundle` produces a Java KeyStore in
+the same way, with `jks_password` and `jks_private_key_alias`. Prefer
+`pkcs12_bundle` where you have the choice — JKS is there for systems that
+cannot read anything else.
+
+These formats are for a consumer that takes the `cert` field as a whole, not
+for `pkiCert`: it looks for PEM blocks in the response and finds none in an
+archive. From a consul-template or Vault Agent template, fetch the keystore with
+`secret` and write the decoded field to a file:
+
+```text
+{{ with secret "acme/certs/lenstra.fr" "common_name=www.lenstra.fr" "format=pkcs12_bundle" }}
+{{ .Data.cert | base64Decode | writeToFile "/etc/app/keystore.p12" "app" "app" "0600" }}
+{{ end }}
+```
+
+The format names, their defaults, and the `changeit` password convention follow
+Vault's PKI engine, which has offered the same two formats since Vault 2.1.0,
+so a consumer can ask either engine for the same thing.
+
+-> **NOTE:** the format is a property of the request, not of the certificate.
+  Asking for a different one returns the same cached certificate rendered
+  differently rather than ordering another from the ACME provider, so the
+  choice costs nothing against rate limits.
+
 ## Quick Start
 
 #### Mount the backend

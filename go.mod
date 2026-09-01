@@ -8,8 +8,10 @@ require (
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/vault/api v1.20.0
 	github.com/hashicorp/vault/sdk v0.25.1
+	github.com/pavlo-v-chernykh/keystore-go/v4 v4.5.0
 	github.com/stevapple/vault-plugin-secrets-acme/acme/sidecar v0.0.0-20241107232223-76c166cf0512
 	github.com/stretchr/testify v1.12.1
+	software.sslmate.com/src/go-pkcs12 v0.7.3
 )
 
 require (
@@ -257,7 +259,6 @@ require (
 	gopkg.in/ns1/ns1-go.v2 v2.18.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	software.sslmate.com/src/go-pkcs12 v0.7.3 // indirect
 )
 
 replace github.com/stevapple/vault-plugin-secrets-acme/acme/sidecar => ./acme/sidecar
