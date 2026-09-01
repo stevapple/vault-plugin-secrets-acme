@@ -152,7 +152,7 @@ func checkCertificate(t *testing.T, resp *logical.Response) {
 		"/",
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/plain")
-			w.Write([]byte("Hello world\n"))
+			_, _ = w.Write([]byte("Hello world\n"))
 		}),
 	)
 	server := &http.Server{Addr: ":4443", Handler: mux}

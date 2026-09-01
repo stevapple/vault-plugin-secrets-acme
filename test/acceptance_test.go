@@ -41,7 +41,7 @@ func TestVault(t *testing.T) {
 		if err := peeble.Process.Kill(); err != nil {
 			t.Fatal(err)
 		}
-		peeble.Process.Wait()
+		_, _ = peeble.Process.Wait()
 	})
 
 	challtestsrv := exec.Command("pebble-challtestsrv", "-http01", "", "-https01", "", "-tlsalpn01", "")
@@ -54,7 +54,7 @@ func TestVault(t *testing.T) {
 		if err := challtestsrv.Process.Kill(); err != nil {
 			t.Fatal(err)
 		}
-		challtestsrv.Process.Wait()
+		_, _ = challtestsrv.Process.Wait()
 	})
 
 	vault := exec.Command("vault", "server", "-dev", "-config", "./vault.hcl", "-dev-root-token-id", "foo")
@@ -67,7 +67,7 @@ func TestVault(t *testing.T) {
 		if err := vault.Process.Kill(); err != nil {
 			t.Fatal(err)
 		}
-		vault.Process.Wait()
+		_, _ = vault.Process.Wait()
 	})
 	time.Sleep(2 * time.Second)
 

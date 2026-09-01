@@ -1,0 +1,12 @@
+version: "2"
+
+# The standard set is what `golangci-lint run` enables by default: errcheck,
+# govet, ineffassign, staticcheck and unused. It is deliberately conservative —
+# every finding it reports on this repository has been a real one — and adding
+# to it is a decision to make against the noise it brings.
+linters:
+  default: standard
+
+formatters:
+  enable:
+    - gofmt

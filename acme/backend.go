@@ -37,7 +37,7 @@ func Factory(version string) logical.Factory {
 		}
 
 		if version != "" {
-			b.Backend.RunningVersion = fmt.Sprintf("v%s", version)
+			b.RunningVersion = fmt.Sprintf("v%s", version)
 		}
 
 		if err := b.Setup(ctx, conf); err != nil {
