@@ -142,10 +142,10 @@ func TestDeleteAccount(t *testing.T) {
 
 	req.Operation = logical.DeleteOperation
 	makeRequest(t, b, req, "")
-	makeRequest(t, b, req, "This account does not exists")
+	makeRequest(t, b, req, "This account does not exist")
 
 	req.Operation = logical.ReadOperation
-	makeRequest(t, b, req, "This account does not exists")
+	makeRequest(t, b, req, "This account does not exist")
 }
 
 func TestListAccounts(t *testing.T) {

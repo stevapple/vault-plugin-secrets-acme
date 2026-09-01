@@ -402,7 +402,7 @@ func TestRoles(t *testing.T) {
 		Path:      "roles/lenstra.fr",
 		Storage:   config.StorageView,
 	}
-	makeRequest(t, b, req, "This role does not exists")
+	makeRequest(t, b, req, "This role does not exist")
 }
 
 func makeRequest(t *testing.T, b logical.Backend, req *logical.Request, expectedError string) *logical.Response {

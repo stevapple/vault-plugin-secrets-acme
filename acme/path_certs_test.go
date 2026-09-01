@@ -75,7 +75,7 @@ func checkCreatingCerts(t *testing.T, b logical.Backend, storage logical.Storage
 		Storage:   storage,
 		Data:      map[string]interface{}{"common_name": "sentry.lenstra.fr"},
 	}
-	makeRequest(t, b, certReq, "This role does not exists.")
+	makeRequest(t, b, certReq, "This role does not exist")
 
 	// Try with an existing role
 	certReq.Path = "certs/lenstra.fr"
