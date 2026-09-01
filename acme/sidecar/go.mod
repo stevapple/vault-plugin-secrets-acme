@@ -1,8 +1,6 @@
 module github.com/stevapple/vault-plugin-secrets-acme/acme/sidecar
 
-go 1.22.7
-
-toolchain go1.23.3
+go 1.24.4
 
 require (
 	github.com/go-acme/lego/v4 v4.19.2
