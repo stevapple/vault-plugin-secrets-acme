@@ -167,6 +167,42 @@ on when a certificate was issued and off when its lease ends leaves that
 certificate valid too: without a cache entry the engine cannot tell the two
 cases apart, and it errs towards not revoking.
 
+## Use with consul-template and Vault Agent
+
+consul-template's `pkiCert` function, and so Vault Agent's templates, is the
+recommended way to consume certificates from this engine. Unlike `secret`, it
+reads the template's destination file first and only calls Vault when the
+certificate there is missing, unparseable, or due for rotation, so an agent
+restart or a re-authentication does not request a new certificate.
+
+```
+{{ with pkiCert "acme/certs/lenstra.fr" "common_name=www.lenstra.fr" }}
+{{ .Key }}{{ .Cert }}{{ .CA }}
+{{ end }}
+```
+
+`pkiCert` sorts the PEM blocks in a response by whether each one is a CA rather
+than by field name, so `private_key`, `cert` and `issuer_cert` arrive as `.Key`,
+`.Cert` and `.CA` with nothing to map.
+
+Two settings decide whether this is safe:
+
+- **Leave `revoke_on_lease_expiry` off**, as it is by default. `pkiCert` does
+  not renew the lease it was handed; it schedules rotation from the
+  certificate's own validity and lets the lease lapse. The certificate stays in
+  use on disk well beyond that, so revoking when the lease expires would
+  withdraw a certificate that is still being served.
+- **Keep `cache_for_ratio` below the rotation point.** `pkiCert` rotates at 90%
+  of a certificate's lifetime by default, configurable through Vault Agent's
+  `template_config { lease_renewal_threshold }`. A cached certificate served
+  past that point reaches a consumer that already considers it due for
+  replacement, which asks again and is handed the same one.
+
+-> **NOTE:** the lease still exists and still expires, it is simply not what
+  drives renewal. It lasts as long as the certificate it carries, capped by the
+  mount's `max_lease_ttl`, so tune that to at least the certificate lifetime if
+  you want lease listings to stay meaningful.
+
 ## Quick Start
 
 #### Mount the backend
