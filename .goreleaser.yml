@@ -26,7 +26,7 @@ builds:
       - arm64
 
 gomod:
-  proxy: true
+  proxy: false
 
 archives:
   - formats:

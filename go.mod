@@ -1,9 +1,9 @@
-module github.com/Boostport/vault-plugin-secrets-acme
+module github.com/stevapple/vault-plugin-secrets-acme
 
 go 1.24.4
 
 require (
-	github.com/Boostport/vault-plugin-secrets-acme/acme/sidecar v0.0.0-20241107232223-76c166cf0512
+	github.com/stevapple/vault-plugin-secrets-acme/acme/sidecar v0.0.0-20241107232223-76c166cf0512
 	github.com/go-acme/lego/v4 v4.23.1
 	github.com/go-viper/mapstructure/v2 v2.3.0
 	github.com/hashicorp/go-hclog v1.6.3
@@ -266,3 +266,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.7.0 // indirect
 	sigs.k8s.io/yaml v1.5.0 // indirect
 )
+
+replace github.com/stevapple/vault-plugin-secrets-acme/acme/sidecar => ./acme/sidecar
