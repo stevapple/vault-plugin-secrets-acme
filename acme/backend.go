@@ -34,6 +34,7 @@ func Factory(version string) logical.Factory {
 				pathRoles(&b),
 				[]*framework.Path{
 					pathCerts(&b),
+					pathRevoke(&b),
 					pathChallenges(&b),
 					pathCache(&b),
 				},
