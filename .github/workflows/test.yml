@@ -19,7 +19,7 @@ jobs:
 
     - name: Install Pebble test ACME server
       run: |
-        go install github.com/letsencrypt/pebble/v2/...@main
+        go install github.com/letsencrypt/pebble/v2/...@v2.10.1
 
     - name: Checkout
       uses: actions/checkout@v4
