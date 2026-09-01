@@ -325,8 +325,7 @@ func TestTLSALPN01Challenge(t *testing.T) {
 }
 
 func TestRoles(t *testing.T) {
-	config, b := getTestConfig(t)
-	createAccount(t, b, config.StorageView)
+	config, b := getTestBackend(t)
 
 	// Test creating roles
 	testCases := []struct {

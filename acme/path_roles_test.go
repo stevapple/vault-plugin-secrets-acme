@@ -8,7 +8,7 @@ import (
 )
 
 func TestListRoles(t *testing.T) {
-	config, b := getTestConfig(t)
+	config, b := getTestBackend(t)
 
 	listReq := &logical.Request{
 		Operation: logical.ListOperation,
@@ -18,17 +18,6 @@ func TestListRoles(t *testing.T) {
 	listResp := makeRequest(t, b, listReq, "")
 	require.Equal(t, map[string]interface{}{}, listResp.Data)
 
-	makeRequest(t, b, &logical.Request{
-		Operation: logical.CreateOperation,
-		Path:      "accounts/lenstra",
-		Storage:   config.StorageView,
-		Data: map[string]interface{}{
-			"server_url":              "https://localhost:14000/dir",
-			"contact":                 "remi@lenstra.fr",
-			"terms_of_service_agreed": true,
-			"provider":                "exec",
-		},
-	}, "")
 	makeRequest(t, b, &logical.Request{
 		Operation: logical.CreateOperation,
 		Path:      "roles/lenstra",
