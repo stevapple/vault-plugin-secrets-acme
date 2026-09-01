@@ -20,11 +20,3 @@ test:
 .PHONY: testacc
 testacc: build
 	@CGO_ENABLED=0 go test $(TEST_ARGS) ./test
-
-.PHONY: website
-website:
-	$(MAKE) -C website build
-
-.PHONY: preview
-preview:
-	$(MAKE) -C website website
