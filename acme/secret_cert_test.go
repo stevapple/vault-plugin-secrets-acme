@@ -46,6 +46,40 @@ func TestRevokeWithoutCacheEntry(t *testing.T) {
 	require.Nil(t, resp)
 }
 
+// A lease whose internal data lacks any of the three fields revocation needs
+// fails with an error naming the field, before the cache is touched, instead
+// of panicking on the type assertion.
+func TestRevokeRejectsMalformedLease(t *testing.T) {
+	complete := map[string]interface{}{
+		"secret_type": secretCertType,
+		"cache_key":   cachePrefix + "0badc0de",
+		"account":     "accounts/lenstra",
+		"cert":        "",
+	}
+	for _, missing := range []string{"cache_key", "account", "cert"} {
+		t.Run("missing "+missing, func(t *testing.T) {
+			config := logical.TestBackendConfig()
+			config.StorageView = &logical.InmemStorage{}
+			b, err := Factory("test")(context.Background(), config)
+			require.NoError(t, err)
+
+			data := map[string]interface{}{}
+			for k, v := range complete {
+				if k != missing {
+					data[k] = v
+				}
+			}
+			_, err = b.HandleRequest(context.Background(), &logical.Request{
+				Operation: logical.RevokeOperation,
+				Path:      "certs/lenstra.fr",
+				Storage:   config.StorageView,
+				Secret:    &logical.Secret{InternalData: data},
+			})
+			require.ErrorContains(t, err, missing)
+		})
+	}
+}
+
 func TestRevokeOnLeaseExpiry(t *testing.T) {
 	tcases := []struct {
 		Name     string

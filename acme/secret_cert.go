@@ -84,11 +84,7 @@ func (b *backend) roleForLease(ctx context.Context, req *logical.Request) (*role
 	return r, nil
 }
 
-func (b *backend) revokeLeaseCertificate(ctx context.Context, req *logical.Request) error {
-	cert, ok := req.Secret.InternalData["cert"].(string)
-	if !ok {
-		return errors.New("lease is missing its certificate")
-	}
+func (b *backend) revokeLeaseCertificate(ctx context.Context, req *logical.Request, accountPath, cert string) error {
 	// A lease lasts as long as its certificate, so by the time it ends the
 	// certificate has often just expired. There is nothing left to revoke
 	// then, and a CA that refuses to revoke an expired certificate would
@@ -98,10 +94,6 @@ func (b *backend) revokeLeaseCertificate(ctx context.Context, req *logical.Reque
 		return nil
 	}
 
-	accountPath, ok := req.Secret.InternalData["account"].(string)
-	if !ok {
-		return errors.New("lease is missing its account")
-	}
 	a, err := getAccount(ctx, req.Storage, accountPath)
 	if err != nil {
 		return err
@@ -123,7 +115,20 @@ func (b *backend) revokeLeaseCertificate(ctx context.Context, req *logical.Reque
 func (b *backend) certRevoke(ctx context.Context, req *logical.Request, _ *framework.FieldData) (*logical.Response, error) {
 	b.cache.Lock()
 	defer b.cache.Unlock()
-	cacheKey := req.Secret.InternalData["cache_key"].(string)
+	// Validate the lease before touching anything so that a malformed one
+	// fails without leaving the cache entry half updated.
+	cacheKey, ok := req.Secret.InternalData["cache_key"].(string)
+	if !ok {
+		return nil, errors.New("lease is missing its cache_key")
+	}
+	accountPath, ok := req.Secret.InternalData["account"].(string)
+	if !ok {
+		return nil, errors.New("lease is missing its account")
+	}
+	cert, ok := req.Secret.InternalData["cert"].(string)
+	if !ok {
+		return nil, errors.New("lease is missing its certificate")
+	}
 
 	ce, err := b.cache.Read(ctx, req.Storage, nil, cacheKey)
 	if err != nil {
@@ -139,7 +144,7 @@ func (b *backend) certRevoke(ctx context.Context, req *logical.Request, _ *frame
 			return nil, err
 		}
 		if r != nil && r.DisableCache && r.RevokeOnLeaseExpiry {
-			return nil, b.revokeLeaseCertificate(ctx, req)
+			return nil, b.revokeLeaseCertificate(ctx, req, accountPath, cert)
 		}
 
 		// Otherwise the entry was dropped once the certificate passed
@@ -173,7 +178,7 @@ func (b *backend) certRevoke(ctx context.Context, req *logical.Request, _ *frame
 			return nil, nil
 		}
 
-		if err = b.revokeLeaseCertificate(ctx, req); err != nil {
+		if err = b.revokeLeaseCertificate(ctx, req, accountPath, cert); err != nil {
 			return nil, err
 		}
 	}
