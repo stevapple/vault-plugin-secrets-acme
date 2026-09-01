@@ -41,11 +41,12 @@ func secretCert(b *backend) *framework.Secret {
 	}
 }
 
+// certRenew hands the lease back and lets Vault work out the new term. There
+// is nothing for the backend to decide: the lease may be extended for as long
+// as the certificate is valid, and MaxTTL was set from NotAfter when it was
+// issued, so core will not extend one past the certificate it carries.
 func (b *backend) certRenew(_ context.Context, req *logical.Request, _ *framework.FieldData) (*logical.Response, error) {
-	resp := &logical.Response{Secret: req.Secret}
-	// I'm not really sure about this
-	resp.Secret.TTL = resp.Secret.TTL + req.Secret.Increment
-	return resp, nil
+	return &logical.Response{Secret: req.Secret}, nil
 }
 
 func (b *backend) certRevoke(ctx context.Context, req *logical.Request, _ *framework.FieldData) (*logical.Response, error) {
