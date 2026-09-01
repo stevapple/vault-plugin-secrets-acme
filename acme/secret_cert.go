@@ -6,8 +6,11 @@ package acme
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
+	"github.com/go-acme/lego/v5/certcrypto"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -56,36 +59,65 @@ func (b *backend) certRenew(_ context.Context, req *logical.Request, _ *framewor
 	return &logical.Response{Secret: req.Secret}, nil
 }
 
-// revokeOnLeaseExpiry reports whether the role the lease was issued under
-// wants the certificate revoked at the ACME provider now that its last lease
-// is going away. The role is re-read rather than snapshotted into the lease so
-// that turning the setting off takes effect for leases already outstanding.
+// roleForLease returns the role a lease was issued against, or nil when it
+// cannot be established — the lease predates the role being recorded, or the
+// role has since been deleted. Callers treat nil as "leave the certificate
+// valid", the safe reading when nobody is left to state an intent.
 //
-// Leases issued before this setting existed carry no role, and a role can be
-// deleted while its certificates are still in use. Both answer no: revocation
-// is the destructive option, so anything short of an explicit opt-in leaves
-// the certificate alone.
-func (b *backend) revokeOnLeaseExpiry(ctx context.Context, req *logical.Request) (bool, error) {
+// The role is re-read rather than snapshotted into the lease so that changing
+// revoke_on_lease_expiry takes effect for leases already outstanding.
+func (b *backend) roleForLease(ctx context.Context, req *logical.Request) (*role, error) {
 	rolePath, ok := req.Secret.InternalData["role"].(string)
 	if !ok || rolePath == "" {
 		b.Logger().Debug("Lease carries no role, leaving the certificate valid")
-		return false, nil
+		return nil, nil
 	}
 
 	r, err := getRole(ctx, req.Storage, rolePath)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	if r == nil {
 		b.Logger().Debug("Role is gone, leaving the certificate valid", "role", rolePath)
-		return false, nil
-	}
-	if !r.RevokeOnLeaseExpiry {
-		b.Logger().Debug("Role does not enable revoke_on_lease_expiry, leaving the certificate valid", "role", rolePath)
-		return false, nil
 	}
 
-	return true, nil
+	return r, nil
+}
+
+func (b *backend) revokeLeaseCertificate(ctx context.Context, req *logical.Request) error {
+	cert, ok := req.Secret.InternalData["cert"].(string)
+	if !ok {
+		return errors.New("lease is missing its certificate")
+	}
+	// A lease lasts as long as its certificate, so by the time it ends the
+	// certificate has often just expired. There is nothing left to revoke
+	// then, and a CA that refuses to revoke an expired certificate would
+	// otherwise keep this lease in Vault's revocation queue for good.
+	if expired, err := certificateExpired(cert); err == nil && expired {
+		b.Logger().Debug("Certificate has expired, nothing to revoke")
+		return nil
+	}
+
+	accountPath, ok := req.Secret.InternalData["account"].(string)
+	if !ok {
+		return errors.New("lease is missing its account")
+	}
+	a, err := getAccount(ctx, req.Storage, accountPath)
+	if err != nil {
+		return err
+	}
+	if a == nil {
+		return fmt.Errorf("error while revoking certificate: user not found")
+	}
+	client, err := a.getClient()
+	if err != nil {
+		return fmt.Errorf("failed to get LEGO client: %w", err)
+	}
+	if err = client.Certificate.Revoke(ctx, []byte(cert)); err != nil {
+		return fmt.Errorf("failed to revoke cert: %v", err)
+	}
+
+	return nil
 }
 
 func (b *backend) certRevoke(ctx context.Context, req *logical.Request, _ *framework.FieldData) (*logical.Response, error) {
@@ -98,11 +130,22 @@ func (b *backend) certRevoke(ctx context.Context, req *logical.Request, _ *frame
 		return nil, err
 	}
 	if ce == nil {
-		// The entry is already gone: a later request found it stale and
-		// dropped it, the role has disable_cache set so it was never written,
-		// or the cache was cleared. Without the reference count we cannot tell
-		// whether other leases still hold this certificate, so leave it valid
-		// and let the lease go away.
+		// No reference count to consult. A role with disable_cache never had
+		// one: its leases hold a certificate of their own, so this lease going
+		// away is the end of that certificate and the role's decision applies
+		// directly.
+		r, err := b.roleForLease(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		if r != nil && r.DisableCache && r.RevokeOnLeaseExpiry {
+			return nil, b.revokeLeaseCertificate(ctx, req)
+		}
+
+		// Otherwise the entry was dropped once the certificate passed
+		// cache_for_ratio of its lifetime, or the cache was cleared. Other
+		// leases may well still hold this certificate and we can no longer
+		// tell, so leave it valid.
 		b.Logger().Debug("No cache entry for the revoked lease, nothing to do", "key", cacheKey)
 		return nil, nil
 	}
@@ -122,32 +165,32 @@ func (b *backend) certRevoke(ctx context.Context, req *logical.Request, _ *frame
 			return nil, fmt.Errorf("failed to remove cache entry: %v", err)
 		}
 
-		revoke, err := b.revokeOnLeaseExpiry(ctx, req)
+		r, err := b.roleForLease(ctx, req)
 		if err != nil {
 			return nil, err
 		}
-		if !revoke {
+		if r == nil || !r.RevokeOnLeaseExpiry {
 			return nil, nil
 		}
 
-		accountPath := req.Secret.InternalData["account"].(string)
-		a, err := getAccount(ctx, req.Storage, accountPath)
-		if err != nil {
+		if err = b.revokeLeaseCertificate(ctx, req); err != nil {
 			return nil, err
-		}
-		if a == nil {
-			return nil, fmt.Errorf("error while revoking certificate: user not found")
-		}
-		client, err := a.getClient()
-		if err != nil {
-			return logical.ErrorResponse("Failed to get LEGO client."), err
-		}
-		cert := req.Secret.InternalData["cert"].(string)
-		err = client.Certificate.Revoke(ctx, []byte(cert))
-		if err != nil {
-			return nil, fmt.Errorf("failed to revoke cert: %v", err)
 		}
 	}
 
 	return nil, nil
+}
+
+// certificateExpired reports whether the leaf in a PEM bundle is past its
+// NotAfter. An unparsable bundle is reported as an error so the caller can
+// fall through to the provider, which will say what is wrong with it.
+func certificateExpired(pemBundle string) (bool, error) {
+	certs, err := certcrypto.ParsePEMBundle([]byte(pemBundle))
+	if err != nil {
+		return false, err
+	}
+	if len(certs) == 0 {
+		return false, errors.New("no certificate in the PEM data")
+	}
+	return time.Now().After(certs[0].NotAfter), nil
 }

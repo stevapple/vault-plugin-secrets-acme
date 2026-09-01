@@ -156,6 +156,17 @@ Success! Data written to: acme/roles/lenstra.fr
   already outstanding. Certificates issued under a role that has since been
   deleted are never revoked.
 
+A role with `disable_cache` has no reference count to keep, because each of its
+leases holds a certificate of its own. Such a lease going away is the end of
+that certificate, and the role's setting is applied to it directly. In the
+other direction, a certificate whose cache entry has already been dropped —
+because it passed `cache_for_ratio` of its lifetime, or the cache was cleared —
+is left valid: other leases may still hold it and the engine can no longer tell.
+Both settings are read when the lease ends, so a role that had `disable_cache`
+on when a certificate was issued and off when its lease ends leaves that
+certificate valid too: without a cache entry the engine cannot tell the two
+cases apart, and it errs towards not revoking.
+
 ## Quick Start
 
 #### Mount the backend
