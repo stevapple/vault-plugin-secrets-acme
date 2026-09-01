@@ -21,6 +21,10 @@ The checksum for the binaries are signed with cosign. To verify the binaries, do
 Then download the release binaries you need. Here, we just download the linux amd64 binary:
 -  `vault-plugin-secrets-acme_${VERSION}_linux_amd64`
 
+The release binaries carry the version and platform in their name. Once verified,
+rename the one you use to `vault-plugin-secrets-acme` before placing it in Vault's
+plugin directory, as the instructions below assume that name.
+
 Then run the following commands to verify the checksums and signature:
 ```sh
 # Verify checksum signature

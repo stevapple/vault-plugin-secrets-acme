@@ -1,5 +1,4 @@
 build
-acme-plugin
 test/*.log
 
 node_modules
