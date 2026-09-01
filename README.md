@@ -1,10 +1,10 @@
 # Vault ACME
 [![Run tests](https://github.com/stevapple/vault-plugin-secrets-acme/actions/workflows/test.yml/badge.svg)](https://github.com/stevapple/vault-plugin-secrets-acme/actions/workflows/test.yml)
 
-Vault ACME is a [Vault](https://www.vaultproject.io/) secret engine that allow
-users and application to retrieve TLS certificates validated by an [ACME provider](https://tools.ietf.org/html/rfc8555)
+Vault ACME is a [Vault](https://www.vaultproject.io/) secret engine that allows
+users and applications to retrieve TLS certificates validated by an [ACME provider](https://tools.ietf.org/html/rfc8555)
 like [Let's Encrypt](https://letsencrypt.org/) without having to give each
-applications permission to modify DNS and using Vault's audit and policy systems.
+application permission to modify DNS and using Vault's audit and policy systems.
 
 Discussion: https://github.com/hashicorp/vault/issues/4950
 
@@ -34,7 +34,7 @@ $ sha256sum -c vault-plugin-secrets-acme_${VERSION}_checksums.txt
 The documentation is available at [`website/source/docs/secrets/acme/index.html.md`](website/source/docs/secrets/acme/index.html.md).
 
 ## How to Use
-Using this plugin in Docker requires to manually set the `mlock` file capability
+Using this plugin in Docker requires manually setting the `mlock` file capability
 to both Vault and the acme plugin:
 
 ```sh
@@ -58,7 +58,7 @@ The unit tests can be run with:
 $ make test
 ```
 
-The acceptance tests needs Vault in addition to `pebble` and `pebble-challtestsrv`.
+The acceptance tests need Vault in addition to `pebble` and `pebble-challtestsrv`.
 
 When `vault` is present in `$PATH` the acceptance tests can be run with:
 
