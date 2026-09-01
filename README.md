@@ -8,6 +8,19 @@ applications permission to modify DNS and using Vault's audit and policy systems
 
 Discussion: https://github.com/hashicorp/vault/issues/4950
 
+## About this fork
+This is a fork of [Boostport/vault-plugin-secrets-acme][boostport], which is
+itself a fork of [remilapeyre/vault-acme][remilapeyre] by Rémi Lapeyre, where
+the engine was written. Nearly all of the code here is theirs.
+
+Like its upstreams it is distributed under the Mozilla Public License 2.0, a
+copy of which is in [LICENSE](LICENSE). MPL copyleft applies per file, so every
+file inherited from either upstream remains under that licence, as does every
+modification made to one here.
+
+[boostport]: https://github.com/Boostport/vault-plugin-secrets-acme
+[remilapeyre]: https://github.com/remilapeyre/vault-acme
+
 ## Download Vault ACME
 Binary releases can be downloaded at https://github.com/stevapple/vault-plugin-secrets-acme/releases.
 
