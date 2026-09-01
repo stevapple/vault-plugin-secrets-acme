@@ -50,8 +50,8 @@ func (b *backend) certCreate(ctx context.Context, req *logical.Request, data *fr
 
 	names := getNames(data)
 
-	path := "roles/" + data.Get("role").(string)
-	r, err := getRole(ctx, req.Storage, path)
+	rolePath := "roles/" + data.Get("role").(string)
+	r, err := getRole(ctx, req.Storage, rolePath)
 	if err != nil {
 		return nil, err
 	}
@@ -62,8 +62,8 @@ func (b *backend) certCreate(ctx context.Context, req *logical.Request, data *fr
 		return logical.ErrorResponse(err.Error()), nil
 	}
 
-	path = "accounts/" + r.Account
-	a, err := getAccount(ctx, req.Storage, path)
+	accountPath := "accounts/" + r.Account
+	a, err := getAccount(ctx, req.Storage, accountPath)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +110,7 @@ func (b *backend) certCreate(ctx context.Context, req *logical.Request, data *fr
 		}
 	}
 
-	s, err := b.getSecret(path, cacheKey, cert)
+	s, err := b.getSecret(accountPath, rolePath, cacheKey, cert)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create the secret: %v", err)
 	}
@@ -139,7 +139,7 @@ func getCacheKey(r *role, data *framework.FieldData) (string, error) {
 	return fmt.Sprintf("%s%x", cachePrefix, hashedKey), nil
 }
 
-func (b *backend) getSecret(accountPath, cacheKey string, cert *certificate.Resource) (*logical.Response, error) {
+func (b *backend) getSecret(accountPath, rolePath, cacheKey string, cert *certificate.Resource) (*logical.Response, error) {
 	// Use the helper to create the secret
 	b.Logger().Debug("Preparing response")
 	certs, err := certcrypto.ParsePEMBundle(cert.Certificate)
@@ -163,6 +163,7 @@ func (b *backend) getSecret(accountPath, cacheKey string, cert *certificate.Reso
 		// this will be used when revoking the certificate
 		map[string]interface{}{
 			"account":   accountPath,
+			"role":      rolePath,
 			"cert":      string(cert.Certificate),
 			"url":       cert.CertStableURL,
 			"cache_key": cacheKey,

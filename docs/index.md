@@ -118,6 +118,36 @@ of the role:
     The output will include a dynamically generated private key and certificate
     which corresponds to the given role.
 
+## Certificate revocation
+
+Certificates are handed out as Vault leases, and several leases can share one
+certificate because the engine caches it and serves the same one to every
+matching request (see `cache_for_ratio` and `disable_cache`). The engine keeps
+a reference count and only acts once the last lease on a certificate goes away.
+
+By default it then does nothing and the certificate stays valid at the ACME
+provider until it expires. A lease ending is not on its own evidence that the
+certificate has stopped being used: a consumer can keep serving one long after
+the lease that fetched it lapsed, which is how consul-template's `pkiCert`
+function and cert-manager's Vault issuer both behave.
+
+Set `revoke_on_lease_expiry` on the role to revoke the certificate at the ACME
+provider instead:
+
+```text
+$ vault write acme/roles/lenstra.fr \
+    account=lenstra \
+    allowed_domains=lenstra.fr \
+    allow_subdomains=true \
+    revoke_on_lease_expiry=true
+Success! Data written to: acme/roles/lenstra.fr
+```
+
+-> **NOTE:** the setting is read when the lease is revoked rather than when the
+  certificate is issued, so turning it off also applies to leases that are
+  already outstanding. Certificates issued under a role that has since been
+  deleted are never revoked.
+
 ## Quick Start
 
 #### Mount the backend
