@@ -131,6 +131,19 @@ on the request and the role definition.
 - `common_name` `(string: <required>)` - The Common Name to request for the certificate.
 - `alternative_names` `(list: [])` - A list of Subject Alternative Names to request for the certificate.
 
+### Response
+
+- `domain` `(string)` - The first name on the certificate.
+- `domains` `(list)` - Every name on the certificate.
+- `url` `(string)` - The certificate's stable URL at the ACME provider.
+- `cert` `(string)` - The certificate and its chain, PEM encoded.
+- `issuer_cert` `(string)` - The issuer's certificate, PEM encoded.
+- `private_key` `(string)` - The private key, PEM encoded.
+- `not_before`, `not_after` `(string)` - The certificate's validity period.
+
+The response is a lease.
+
+
 ## Get the token for an HTTP-01 challenge
 
 This endpoint returns the information needed to solve the HTTP-01 challenge.

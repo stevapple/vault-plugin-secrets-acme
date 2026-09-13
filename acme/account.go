@@ -11,15 +11,15 @@ import (
 	"encoding/pem"
 	"fmt"
 
-	"github.com/go-acme/lego/v4/lego"
-	"github.com/go-acme/lego/v4/registration"
+	"github.com/go-acme/lego/v5/acme"
+	"github.com/go-acme/lego/v5/lego"
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
 type account struct {
 	Email                 string
-	Registration          *registration.Resource
-	Key                   crypto.PrivateKey
+	Registration          *acme.ExtendedAccount
+	Key                   crypto.Signer
 	KeyType               string
 	ServerURL             string
 	Provider              string
@@ -37,12 +37,12 @@ func (a *account) GetEmail() string {
 }
 
 // GetRegistration returns the registration of the user
-func (a *account) GetRegistration() *registration.Resource {
+func (a *account) GetRegistration() *acme.ExtendedAccount {
 	return a.Registration
 }
 
 // GetPrivateKey returns the private key of the user
-func (a *account) GetPrivateKey() crypto.PrivateKey {
+func (a *account) GetPrivateKey() crypto.Signer {
 	return a.Key
 }
 
@@ -74,6 +74,12 @@ func getAccount(ctx context.Context, storage logical.Storage, path string) (*acc
 	if err != nil {
 		return nil, err
 	}
+	// Every key the engine writes is RSA or ECDSA and signs; only a
+	// hand-edited store could hold anything else.
+	signer, ok := privateKey.(crypto.Signer)
+	if !ok {
+		return nil, fmt.Errorf("the account key at %q cannot sign (%T)", path, privateKey)
+	}
 
 	// key_type, provider_configuration, ignore_dns_propagation and
 	// dns_resolvers were each added after the first release, so an account
@@ -91,10 +97,10 @@ func getAccount(ctx context.Context, storage logical.Storage, path string) (*acc
 
 	a := &account{
 		Email:   d["contact"].(string),
-		Key:     privateKey,
+		Key:     signer,
 		KeyType: keyType,
-		Registration: &registration.Resource{
-			URI: d["registration_uri"].(string),
+		Registration: &acme.ExtendedAccount{
+			Location: d["registration_uri"].(string),
 		},
 		ServerURL:             d["server_url"].(string),
 		Provider:              d["provider"].(string),
@@ -127,7 +133,7 @@ func (a *account) save(ctx context.Context, storage logical.Storage, path string
 
 	storageEntry, err := logical.StorageEntryJSON(path, map[string]interface{}{
 		"server_url":              serverURL,
-		"registration_uri":        a.Registration.URI,
+		"registration_uri":        a.Registration.Location,
 		"contact":                 a.GetEmail(),
 		"terms_of_service_agreed": a.TermsOfServiceAgreed,
 		"private_key":             string(pemEncoded),

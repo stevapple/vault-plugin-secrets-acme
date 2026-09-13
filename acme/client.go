@@ -8,16 +8,29 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 
-	"github.com/go-acme/lego/v4/certificate"
-	"github.com/go-acme/lego/v4/challenge/dns01"
-	"github.com/go-acme/lego/v4/lego"
-	"github.com/go-acme/lego/v4/providers/dns"
+	"github.com/go-acme/lego/v5/certcrypto"
+	"github.com/go-acme/lego/v5/certificate"
+	"github.com/go-acme/lego/v5/challenge/dns01"
+	"github.com/go-acme/lego/v5/lego"
+	"github.com/go-acme/lego/v5/providers/dns"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
+// dnsChallengeMu serialises DNS-01 issuance. lego v5 reads the resolvers
+// for its propagation checks from a process-wide default client, which
+// setupChallengeProviders sets per account; two accounts with different
+// resolvers issuing at once would otherwise check against each other's.
+var dnsChallengeMu sync.Mutex
+
 func getCertFromACMEProvider(ctx context.Context, logger log.Logger, req *logical.Request, a *account, names []string) (*certificate.Resource, error) {
+	if a.Provider != "" {
+		dnsChallengeMu.Lock()
+		defer dnsChallengeMu.Unlock()
+	}
+
 	client, err := a.getClient()
 	if err != nil {
 		return nil, err
@@ -31,9 +44,15 @@ func getCertFromACMEProvider(ctx context.Context, logger log.Logger, req *logica
 	request := certificate.ObtainRequest{
 		Domains: names,
 		Bundle:  true,
+		// lego v5 has no default; v4 issued RSA 2048 certificates unless told
+		// otherwise, and this keeps doing so.
+		KeyType: certcrypto.RSA2048,
+		// v4 put the first requested name in the Subject CN; v5 leaves the CN
+		// empty unless asked. Keep it, for whatever reads the CN.
+		EnableCommonName: true,
 	}
 
-	return client.Certificate.Obtain(request)
+	return client.Certificate.Obtain(ctx, request)
 }
 
 func setupChallengeProviders(ctx context.Context, logger log.Logger, client *lego.Client, a *account, req *logical.Request) error {
@@ -53,10 +72,19 @@ func setupChallengeProviders(ctx context.Context, logger log.Logger, client *leg
 			return err
 		}
 
+		// lego v5 takes the resolvers for propagation checks from a
+		// process-wide default client rather than from a per-provider
+		// option, so set it for this account, and back to the system
+		// resolvers for an account that names none.
+		if len(a.DNSResolvers) > 0 {
+			dns01.SetDefaultClient(dns01.NewClient(&dns01.Options{RecursiveNameservers: a.DNSResolvers}))
+		} else {
+			dns01.SetDefaultClient(dns01.NewClient(nil))
+		}
+
 		err = client.Challenge.SetDNS01Provider(
 			provider,
-			dns01.CondOption(len(a.DNSResolvers) > 0, dns01.AddRecursiveNameservers(a.DNSResolvers)),
-			dns01.CondOption(a.IgnoreDNSPropagation, dns01.DisableAuthoritativeNssPropagationRequirement()),
+			dns01.CondOptions(a.IgnoreDNSPropagation, dns01.DisableAuthoritativeNssPropagationRequirement()),
 		)
 		if err != nil {
 			return err

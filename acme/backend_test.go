@@ -248,8 +248,8 @@ func TestNoChallenge(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Did not get error")
 	}
-	if !strings.Contains(err.Error(), "acme: could not determine solvers") {
-		t.Fatalf("Error did not contain 'acme: could not determine solvers'")
+	if !strings.Contains(err.Error(), "could not determine solvers") {
+		t.Fatalf("Error did not contain 'could not determine solvers': %v", err)
 	}
 	if resp == nil {
 		t.Fatalf("Did not get response")
@@ -257,7 +257,7 @@ func TestNoChallenge(t *testing.T) {
 	if !resp.IsError() {
 		t.Fatalf("Did not get error")
 	}
-	expected := "Failed to validate certificate signing request: error: one or more domains had a problem:\n[sentry.lenstra.fr] [sentry.lenstra.fr] acme: could not determine solvers\n"
+	expected := "Failed to validate certificate signing request: resolver: one or more domains had a problem: [sentry.lenstra.fr: prober: could not determine solvers]"
 	require.Equal(t, expected, resp.Error().Error())
 }
 

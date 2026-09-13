@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-acme/lego/v4/certcrypto"
-	"github.com/go-acme/lego/v4/certificate"
+	"github.com/go-acme/lego/v5/certcrypto"
+	"github.com/go-acme/lego/v5/certificate"
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
@@ -32,8 +32,13 @@ type CacheEntry struct {
 	Account string
 
 	// We have to copy all fields of the cert here as the []byte ones are not
-	// exported in certificate.Resource
+	// exported in certificate.Resource.
+	//
+	// Domain is what entries written before lego v5 carry; Domains is what
+	// lego v5 reports. Both are kept so an entry written by either version
+	// reads back the same way.
 	Domain            string
+	Domains           []string
 	CertURL           string
 	CertStableURL     string
 	PrivateKey        []byte
@@ -46,7 +51,8 @@ func NewCacheEntry(account string, cert *certificate.Resource) *CacheEntry {
 	return &CacheEntry{
 		Users:             1,
 		Account:           account,
-		Domain:            cert.Domain,
+		Domain:            firstDomain(cert.Domains),
+		Domains:           cert.Domains,
 		CertURL:           cert.CertURL,
 		CertStableURL:     cert.CertStableURL,
 		PrivateKey:        cert.PrivateKey,
@@ -58,7 +64,7 @@ func NewCacheEntry(account string, cert *certificate.Resource) *CacheEntry {
 
 func (ce *CacheEntry) Certificate() *certificate.Resource {
 	return &certificate.Resource{
-		Domain:            ce.Domain,
+		Domains:           ce.domains(),
 		CertURL:           ce.CertURL,
 		CertStableURL:     ce.CertStableURL,
 		PrivateKey:        ce.PrivateKey,
@@ -66,6 +72,25 @@ func (ce *CacheEntry) Certificate() *certificate.Resource {
 		IssuerCertificate: ce.IssuerCertificate,
 		CSR:               ce.CSR,
 	}
+}
+
+// domains returns the names on the entry, falling back to the single Domain
+// that entries written before lego v5 carry.
+func (ce *CacheEntry) domains() []string {
+	if len(ce.Domains) > 0 {
+		return ce.Domains
+	}
+	if ce.Domain != "" {
+		return []string{ce.Domain}
+	}
+	return nil
+}
+
+func firstDomain(domains []string) string {
+	if len(domains) == 0 {
+		return ""
+	}
+	return domains[0]
 }
 
 func (ce *CacheEntry) Save(ctx context.Context, storage logical.Storage, key string) error {

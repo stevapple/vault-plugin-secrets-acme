@@ -70,7 +70,7 @@ func TestExplicitProviderConfiguration(t *testing.T) {
 	resp, err := b.HandleRequest(context.Background(), req)
 	require.Error(t, err, "fork/exec /dev/null: permission denied")
 	require.Equal(t, resp.Data, map[string]interface{}{
-		"error": "Failed to validate certificate signing request: error: one or more domains had a problem:\n[sentry.lenstra.fr] [sentry.lenstra.fr] acme: error presenting token: exec: start command: fork/exec /dev/null: permission denied\n",
+		"error": "Failed to validate certificate signing request: resolver: one or more domains had a problem: [sentry.lenstra.fr: dns01: error presenting token (sentry.lenstra.fr): exec: start command: fork/exec /dev/null: permission denied]",
 	})
 }
 
@@ -164,7 +164,7 @@ func checkRevokeCert(t *testing.T, b logical.Backend, storage logical.Storage, f
 	}
 
 	// Checking the OCSP status was not working for tests
-	err = client.Certificate.Revoke([]byte(second.Data["cert"].(string)))
+	err = client.Certificate.Revoke(context.Background(), []byte(second.Data["cert"].(string)))
 	if err == nil {
 		t.Fatalf("Trying to revoke the cert should have failed")
 	}
