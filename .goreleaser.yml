@@ -16,11 +16,9 @@ builds:
       - arm64
     # The matrix is Vault's own: a secrets plugin runs as a second process
     # beside the server, so a platform Vault does not ship is a platform the
-    # plugin cannot be loaded on. These three are the combinations Go will
-    # build but Vault does not publish.
+    # plugin cannot be loaded on. These two are the combinations Go will
+    # build but Vault does not publish; darwin/386 is not a Go target at all.
     ignore:
-      - goos: darwin
-        goarch: "386"
       - goos: freebsd
         goarch: arm64
       - goos: windows
@@ -41,11 +39,9 @@ builds:
       - arm64
     # The matrix is Vault's own: a secrets plugin runs as a second process
     # beside the server, so a platform Vault does not ship is a platform the
-    # plugin cannot be loaded on. These three are the combinations Go will
-    # build but Vault does not publish.
+    # plugin cannot be loaded on. These two are the combinations Go will
+    # build but Vault does not publish; darwin/386 is not a Go target at all.
     ignore:
-      - goos: darwin
-        goarch: "386"
       - goos: freebsd
         goarch: arm64
       - goos: windows
