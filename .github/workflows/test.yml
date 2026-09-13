@@ -5,6 +5,15 @@ on:
       - main
   pull_request:
 
+permissions:
+  contents: read
+
+# A second push to a pull request makes the run already in flight pointless,
+# and each one builds Pebble and downloads Vault.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test:
     name: Run tests
@@ -12,17 +21,22 @@ jobs:
     env:
       VAULT_VERSION: "1.20.0"
     steps:
+    - name: Checkout
+      uses: actions/checkout@v7
+
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v7
       with:
-        go-version: 1.24
+        go-version-file: go.work
 
     - name: Install Pebble test ACME server
+      # Pebble is a test dependency built from source, and the Go it needs is
+      # its own business: setup-go pins GOTOOLCHAIN=local to this repository's
+      # go.work, which is the right floor for our code but not for Pebble's.
+      env:
+        GOTOOLCHAIN: auto
       run: |
         go install github.com/letsencrypt/pebble/v2/...@v2.10.1
-
-    - name: Checkout
-      uses: actions/checkout@v4
 
     - name: Run unit tests
       run: |
