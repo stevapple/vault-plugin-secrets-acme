@@ -3,7 +3,7 @@ module github.com/stevapple/vault-plugin-secrets-acme/acme/sidecar
 go 1.25.7
 
 require (
-	github.com/go-acme/lego/v4 v4.19.2
+	github.com/go-acme/lego/v4 v4.23.1
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/vault/api v1.20.0
 	github.com/hashicorp/vault/sdk v0.25.1
@@ -23,12 +23,13 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/fatih/color v1.19.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
+	github.com/frankban/quicktest v1.14.6 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/golang/snappy v0.0.4 // indirect
-	github.com/google/certificate-transparency-go v1.3.1 // indirect
+	github.com/golang/snappy v1.0.0 // indirect
+	github.com/google/certificate-transparency-go v1.3.2 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-hmac-drbg v0.0.0-20210916214228-a6e5a68489f6 // indirect
@@ -54,6 +55,7 @@ require (
 	github.com/joshlf/go-acl v0.0.0-20200411065538-eae00ae38531 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/miekg/dns v1.1.66 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
