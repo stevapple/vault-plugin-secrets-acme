@@ -9,6 +9,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"net"
 	"strings"
 	"time"
 
@@ -169,7 +170,20 @@ func getCacheKey(r *role, data *framework.FieldData) (string, error) {
 		if renderingFields[key] {
 			continue
 		}
-		d[key] = data.Get(key)
+		// Two spellings of one address are one certificate.
+		switch key {
+		case "common_name":
+			d[key] = canonicalName(data.Get(key).(string))
+		case "alternative_names":
+			altNames := data.Get(key).([]string)
+			canonical := make([]string, len(altNames))
+			for i, n := range altNames {
+				canonical[i] = canonicalName(n)
+			}
+			d[key] = canonical
+		default:
+			d[key] = data.Get(key)
+		}
 	}
 	dataPath, err := json.Marshal(d)
 	if err != nil {
@@ -237,12 +251,26 @@ func (b *backend) getSecret(accountPath, rolePath, cacheKey string, cert *certif
 func getNames(data *framework.FieldData) []string {
 	altNames := data.Get("alternative_names").([]string)
 	names := make([]string, len(altNames)+1)
-	names[0] = data.Get("common_name").(string)
+	names[0] = canonicalName(data.Get("common_name").(string))
 	for i, n := range altNames {
-		names[i+1] = n
+		names[i+1] = canonicalName(n)
 	}
 
 	return names
+}
+
+// canonicalName writes an address the one way (RFC 5952 for IPv6, dotted
+// quad for IPv4 however it was spelled) and leaves a domain name alone. lego
+// sends an identifier exactly as written and the challenge is stored under
+// it, while the sidecar decodes the address the ACME server presents in its
+// canonical form; the two only meet if the request is canonical too. It also
+// keeps two spellings of one address from becoming two cache entries.
+func canonicalName(name string) string {
+	if ip := net.ParseIP(name); ip != nil {
+		return ip.String()
+	}
+
+	return name
 }
 
 func validateNames(b logical.Backend, r *role, names []string) error {
@@ -253,6 +281,16 @@ func validateNames(b logical.Backend, r *role, names []string) error {
 	}
 
 	for _, name := range names {
+		// An address is an identifier of its own type (RFC 8738), not a name
+		// under any of the allowed domains, so allowed_domains has nothing to
+		// say about it and the role's own flag decides.
+		if net.ParseIP(name) != nil {
+			if !r.AllowIPSANs {
+				return fmt.Errorf("'%s' is an IP address and the role does not allow IP SANs", name)
+			}
+			continue
+		}
+
 		var valid bool
 		for _, domain := range r.AllowedDomains {
 			if (domain == name && r.AllowBareDomains) ||

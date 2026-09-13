@@ -165,6 +165,38 @@ func TestCacheKeyIgnoresRenderingOptions(t *testing.T) {
 	require.NotEqual(t, base, keyFor(map[string]interface{}{"role": "lenstra.fr", "common_name": "other.lenstra.fr"}))
 }
 
+// getCacheKey hashes the role, so a flag that only decides which requests a
+// role will accept must stay out of the hash: turning it on has to leave the
+// certificates already cached under the role exactly where they are.
+func TestCacheKeyIgnoresPolicyFlags(t *testing.T) {
+	schema := pathCerts(&backend{}).Fields
+	raw := map[string]interface{}{"role": "lenstra.fr", "common_name": "www.lenstra.fr"}
+
+	keyFor := func(r *role) string {
+		t.Helper()
+		k, err := getCacheKey(r, &framework.FieldData{Raw: raw, Schema: schema})
+		require.NoError(t, err)
+		return k
+	}
+
+	base := keyFor(&role{Account: "lenstra", AllowedDomains: []string{"lenstra.fr"}, CacheForRatio: 70})
+
+	require.Equal(t, base, keyFor(&role{
+		Account: "lenstra", AllowedDomains: []string{"lenstra.fr"}, CacheForRatio: 70,
+		AllowIPSANs: true,
+	}), "allow_ip_sans must not split the cache")
+	require.Equal(t, base, keyFor(&role{
+		Account: "lenstra", AllowedDomains: []string{"lenstra.fr"}, CacheForRatio: 70,
+		RevokeOnLeaseExpiry: true,
+	}), "revoke_on_lease_expiry must not split the cache")
+
+	// What the role allows still does.
+	require.NotEqual(t, base, keyFor(&role{
+		Account: "lenstra", AllowedDomains: []string{"lenstra.fr"}, CacheForRatio: 70,
+		AllowSubdomains: true,
+	}))
+}
+
 // An unsupported format is a client error, and it must be reported before the
 // request gets anywhere near the cache or the ACME provider: here there is not
 // even a role to find, and the format is still what the response complains
@@ -190,4 +222,35 @@ func TestCertCreateRejectsUnknownFormatFirst(t *testing.T) {
 		require.True(t, resp.IsError())
 		require.Contains(t, resp.Error().Error(), "is not a supported")
 	}
+}
+
+func TestNamesCanonicalizeAddresses(t *testing.T) {
+	schema := pathCerts(&backend{}).Fields
+	fd := func(raw map[string]interface{}) *framework.FieldData {
+		return &framework.FieldData{Raw: raw, Schema: schema}
+	}
+
+	// Every spelling of an address becomes the one lego, the storage path
+	// and the sidecar's decoder agree on; domain names are left as written.
+	names := getNames(fd(map[string]interface{}{
+		"role":              "lenstra.fr",
+		"common_name":       "2001:DB8::1",
+		"alternative_names": "2001:0db8:0000::0001,::ffff:10.0.0.1,WWW.lenstra.fr",
+	}))
+	require.Equal(t, []string{"2001:db8::1", "2001:db8::1", "10.0.0.1", "WWW.lenstra.fr"}, names)
+
+	// And two spellings of one address are one cache entry.
+	r := &role{Account: "lenstra", AllowIPSANs: true}
+	key := func(raw map[string]interface{}) string {
+		t.Helper()
+		k, err := getCacheKey(r, fd(raw))
+		require.NoError(t, err)
+		return k
+	}
+	require.Equal(t,
+		key(map[string]interface{}{"role": "lenstra.fr", "common_name": "2001:DB8::1", "alternative_names": "::ffff:10.0.0.1"}),
+		key(map[string]interface{}{"role": "lenstra.fr", "common_name": "2001:db8::1", "alternative_names": "10.0.0.1"}))
+	require.NotEqual(t,
+		key(map[string]interface{}{"role": "lenstra.fr", "common_name": "2001:db8::1"}),
+		key(map[string]interface{}{"role": "lenstra.fr", "common_name": "2001:db8::2"}))
 }

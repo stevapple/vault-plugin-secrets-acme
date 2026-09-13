@@ -49,6 +49,13 @@ func getCertFromACMEProvider(ctx context.Context, logger log.Logger, req *logica
 		KeyType: keyType,
 		// v4 put the first requested name in the Subject CN; v5 leaves the CN
 		// empty unless asked. Keep it, for whatever reads the CN.
+		//
+		// This holds for an address as much as for a name: asked for an IP
+		// identifier (RFC 8738), lego writes the address into the CSR's
+		// Subject CN and into its IPAddresses, and pebble 2.10.1 issues
+		// against such a CSR without complaint, so there is nothing to turn
+		// off for an address. What a given ACME server puts in the CN of the
+		// certificate it hands back is its own decision either way.
 		EnableCommonName: true,
 	}
 
