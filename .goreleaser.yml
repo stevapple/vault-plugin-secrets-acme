@@ -59,12 +59,14 @@ checksum:
 
 signs:
   - cmd: cosign
-    certificate: "${artifact}.pem"
+    # cosign v3 writes a single Sigstore bundle holding the signature and the
+    # certificate; the separate --output-signature and --output-certificate
+    # flags are deprecated and, with the bundle format, produce nothing.
+    signature: "${artifact}.sigstore.json"
     output: true
     artifacts: checksum
     args:
       - sign-blob
-      - "--output-certificate=${certificate}"
-      - "--output-signature=${signature}"
+      - "--bundle=${signature}"
       - "${artifact}"
       - --yes

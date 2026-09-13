@@ -28,8 +28,7 @@ Binary releases can be downloaded at https://github.com/stevapple/vault-plugin-s
 The checksum for the binaries are signed with cosign. To verify the binaries, download the following files (where
 `${VERSION}` is the version of the release):
 - `vault-plugin-secrets-acme_${VERSION}_checksums.txt`
-- `vault-plugin-secrets-acme_${VERSION}_checksums.txt.pem`
-- `vault-plugin-secrets-acme_${VERSION}_checksums.txt.sig`
+- `vault-plugin-secrets-acme_${VERSION}_checksums.txt.sigstore.json`
 
 Then download the release binaries you need. Here, we just download the linux amd64 binary:
 -  `vault-plugin-secrets-acme_${VERSION}_linux_amd64`
@@ -41,7 +40,7 @@ plugin directory, as the instructions below assume that name.
 Then run the following commands to verify the checksums and signature:
 ```sh
 # Verify checksum signature
-$ cosign verify-blob --signature vault-plugin-secrets-acme_${VERSION}_checksums.txt.sig --certificate vault-plugin-secrets-acme_${VERSION}_checksums.txt.pem vault-plugin-secrets-acme_${VERSION}_checksums.txt --certificate-identity "https://github.com/stevapple/vault-plugin-secrets-acme/.github/workflows/release.yml@refs/tags/v${VERSION}" --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+$ cosign verify-blob --bundle vault-plugin-secrets-acme_${VERSION}_checksums.txt.sigstore.json vault-plugin-secrets-acme_${VERSION}_checksums.txt --certificate-identity "https://github.com/stevapple/vault-plugin-secrets-acme/.github/workflows/release.yml@refs/tags/v${VERSION}" --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
 
 # Verify checksum with binaries
 $ sha256sum -c vault-plugin-secrets-acme_${VERSION}_checksums.txt
