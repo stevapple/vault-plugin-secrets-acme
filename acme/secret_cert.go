@@ -61,6 +61,15 @@ func (b *backend) certRevoke(ctx context.Context, req *logical.Request, _ *frame
 	if err != nil {
 		return nil, err
 	}
+	if ce == nil {
+		// The entry is already gone: a later request found it stale and
+		// dropped it, the role has disable_cache set so it was never written,
+		// or the cache was cleared. Without the reference count we cannot tell
+		// whether other leases still hold this certificate, so leave it valid
+		// and let the lease go away.
+		b.Logger().Debug("No cache entry for the revoked lease, nothing to do", "key", cacheKey)
+		return nil, nil
+	}
 
 	ce.Users--
 	if ce.Users > 0 {
