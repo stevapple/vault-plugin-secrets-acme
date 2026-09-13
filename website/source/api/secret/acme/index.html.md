@@ -96,7 +96,7 @@ This endpoint creates or updates a role definition.
 - `account` `(string: <required>)` - The ACME account to use when validating certificates.
 - `allowed_domains` `(list: [])` - A list of domains the role will be able to deliver certificates for.
 - `allow_bare_domains` `(bool: false)` - Whether to accept a request for a certificate that match an allowed domain exactly.
-- `allow_subdomains` `(bool: false)` - Whether to accept a request for a certificate containiing a subdomain of an allowed domain.
+- `allow_subdomains` `(bool: false)` - Whether to accept a request for a certificate containing a subdomain of an allowed domain.
 - `disable_cache` `(bool: false)` - Whether to disable the cache.
 - `cache_for_ratio` `(int: 70)` - For how long a cached cert should be used, e.g. a value of 70 means that a cached certificate will be used until 70% of its lifetime will be reached, then a new certificate will be requested.
 
