@@ -9,9 +9,11 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -206,49 +208,55 @@ func checkCertificate(t *testing.T, resp *logical.Response) {
 
 	go func() {
 		err := server.Serve(tlsListener)
-		if err != nil {
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			t.Error(err)
 		}
 	}()
+	t.Cleanup(func() { _ = server.Close() })
 
-	dialContext := http.DefaultTransport.(*http.Transport).DialContext
+	// Verify with Go's own verifier and a root pool of our own, rather than
+	// whatever the platform verifier makes of an untrusted chain: the errors
+	// it produces are typed, and the same on every OS. Pebble generates its
+	// issuing root at startup and publishes it on the management interface,
+	// which is itself served under the fixed test certificate in test/certs.
+	roots := x509.NewCertPool()
+	minica, err := os.ReadFile("../test/certs/pebble.minica.pem")
+	require.NoError(t, err)
+	require.True(t, roots.AppendCertsFromPEM(minica))
+
+	management := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots}}}
+	rootResp, err := management.Get("https://localhost:15000/roots/0")
+	require.NoError(t, err)
+	rootPEM, err := io.ReadAll(rootResp.Body)
+	_ = rootResp.Body.Close()
+	require.NoError(t, err)
+	require.True(t, roots.AppendCertsFromPEM(rootPEM), "Pebble's root should be PEM")
 
 	dialer := &net.Dialer{
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
 	}
-	http.DefaultTransport.(*http.Transport).DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		if addr == "example.com:443" || addr == "sentry.lenstra.fr:443" {
-			addr = "127.0.0.1:4443"
-		}
-		return dialer.DialContext(ctx, network, addr)
-	}
+	client := &http.Client{Transport: &http.Transport{
+		TLSClientConfig: &tls.Config{RootCAs: roots},
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			if addr == "example.com:443" || addr == "sentry.lenstra.fr:443" {
+				addr = "127.0.0.1:4443"
+			}
+			return dialer.DialContext(ctx, network, addr)
+		},
+	}}
 
-	_, err = http.Get("https://example.com")
-	if err == nil {
-		t.Fatal("Was expecting error but got none.")
-	}
-	if err.Error() != "Get \"https://example.com\": tls: failed to verify certificate: x509: certificate is valid for sentry.lenstra.fr, grafana.lenstra.fr, not example.com" && err.Error() != `Get "https://example.com": x509: “sentry.lenstra.fr” certificate is not standards compliant` {
-		t.Fatalf("Got wrong error: %s", err.Error())
-	}
+	// The certificate is for the names that were requested, and nothing else.
+	_, err = client.Get("https://example.com")
+	var hostnameErr x509.HostnameError
+	require.ErrorAs(t, err, &hostnameErr)
+	require.Equal(t, "example.com", hostnameErr.Host)
 
-	HTTPResp, err := http.Get("https://sentry.lenstra.fr")
-	if err != nil {
-		// This is expected as the intermediate test cert may not be installed
-		if err.Error() != "Get \"https://sentry.lenstra.fr\": tls: failed to verify certificate: x509: certificate signed by unknown authority" && err.Error() != `Get "https://sentry.lenstra.fr": x509: “sentry.lenstra.fr” certificate is not standards compliant` {
-			t.Fatalf("%s", err.Error())
-		}
-	}
-	if HTTPResp != nil {
-		body, err := io.ReadAll(HTTPResp.Body)
-		if err != nil {
-			t.Fatal(err)
-		}
-		expected := "Hello world\n"
-		if string(body) != expected {
-			t.Fatalf("Expected: '%s'\nGot: '%s'", expected, string(body))
-		}
-	}
-
-	http.DefaultTransport.(*http.Transport).DialContext = dialContext
+	// And it chains to the CA that issued it.
+	httpResp, err := client.Get("https://sentry.lenstra.fr")
+	require.NoError(t, err)
+	body, err := io.ReadAll(httpResp.Body)
+	_ = httpResp.Body.Close()
+	require.NoError(t, err)
+	require.Equal(t, "Hello world\n", string(body))
 }
