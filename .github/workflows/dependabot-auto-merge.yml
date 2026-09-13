@@ -1,0 +1,29 @@
+name: Dependabot auto-merge
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    name: Enable auto-merge
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Read the update
+      id: update
+      uses: dependabot/fetch-metadata@v2
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+
+    # Auto-merge means "merge once every required check is green": the
+    # ruleset on main requires the unit, acceptance and lint jobs, so a bump
+    # that breaks the build stays open. A new major is left for a person,
+    # since it is the one kind of bump whose changes the tests may not cover.
+    - name: Enable auto-merge
+      if: steps.update.outputs.update-type != 'version-update:semver-major'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        PR_URL: ${{ github.event.pull_request.html_url }}
+      run: gh pr merge --auto --squash "$PR_URL"

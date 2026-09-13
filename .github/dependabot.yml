@@ -1,9 +1,11 @@
 version: 2
 updates:
-  # Both ecosystems are configured but dormant: a limit of 0 opens no version
-  # update pull requests while the release sequence is still landing, and
-  # security updates are unaffected by it. Raise the limit once the sequence
-  # is tagged.
+  # Version updates are dormant: a limit of 0 opens no version update pull
+  # requests while a series of dependency changes is still landing. Security
+  # updates are a repository setting and unaffected by the limit; they are
+  # grouped here so that one alert sweep arrives as one consistent pull
+  # request per module rather than one per dependency, which cannot be
+  # guaranteed to build on its own.
   - package-ecosystem: gomod
     directory: /
     schedule:
@@ -11,6 +13,10 @@ updates:
     open-pull-requests-limit: 0
     groups:
       go-dependencies:
+        patterns:
+          - "*"
+      go-security-updates:
+        applies-to: security-updates
         patterns:
           - "*"
   - package-ecosystem: gomod
@@ -22,6 +28,10 @@ updates:
       go-dependencies:
         patterns:
           - "*"
+      go-security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -29,5 +39,9 @@ updates:
     open-pull-requests-limit: 0
     groups:
       actions:
+        patterns:
+          - "*"
+      actions-security-updates:
+        applies-to: security-updates
         patterns:
           - "*"
