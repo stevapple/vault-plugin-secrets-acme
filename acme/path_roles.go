@@ -72,7 +72,7 @@ func (b *backend) roleCreateOrUpdate(ctx context.Context, req *logical.Request, 
 
 	cacheForRatio := data.Get("cache_for_ratio").(int)
 	if cacheForRatio <= 0 || cacheForRatio > 100 {
-		return logical.ErrorResponse("cache_for_ration should be greater than 0 and less than 100"), nil
+		return logical.ErrorResponse("cache_for_ratio should be greater than 0 and no greater than 100"), nil
 	}
 
 	r := role{
