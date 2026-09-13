@@ -1,23 +1,18 @@
 version: 2
 updates:
-  # Both ecosystems are configured but dormant: a limit of 0 opens no version
-  # update pull requests while the release sequence is still landing, and
-  # security updates are unaffected by it. Raise the limit once the sequence
-  # is tagged.
+  # Updates within an ecosystem are grouped, so each one opens at most a single
+  # pull request per run; the limit is there to keep a stuck group from piling
+  # up. Security updates are unaffected by it.
+  #
+  # The root module requires acme/sidecar through a replace directive, so its
+  # dependencies are part of the root's graph and a bump here updates both
+  # go.mod files. A separate entry for the sidecar would only open pull
+  # requests that the root's supersede.
   - package-ecosystem: gomod
     directory: /
     schedule:
       interval: monthly
-    open-pull-requests-limit: 0
-    groups:
-      go-dependencies:
-        patterns:
-          - "*"
-  - package-ecosystem: gomod
-    directory: /acme/sidecar
-    schedule:
-      interval: monthly
-    open-pull-requests-limit: 0
+    open-pull-requests-limit: 5
     groups:
       go-dependencies:
         patterns:
@@ -26,7 +21,7 @@ updates:
     directory: /
     schedule:
       interval: monthly
-    open-pull-requests-limit: 0
+    open-pull-requests-limit: 5
     groups:
       actions:
         patterns:
