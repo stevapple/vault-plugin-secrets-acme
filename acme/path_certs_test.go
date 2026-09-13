@@ -6,6 +6,8 @@ package acme
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -259,4 +261,57 @@ func checkCertificate(t *testing.T, resp *logical.Response) {
 	_ = httpResp.Body.Close()
 	require.NoError(t, err)
 	require.Equal(t, "Hello world\n", string(body))
+}
+
+// TestCertsKeyType checks that a role's key_type decides the key a certificate
+// is issued with, and that a role without one still gets RSA 2048.
+func TestCertsKeyType(t *testing.T) {
+	config, b := getTestConfig(t)
+	createAccount(t, b, config.StorageView)
+	createRole(t, b, config.StorageView)
+
+	makeRequest(t, b, &logical.Request{
+		Operation: logical.CreateOperation,
+		Path:      "roles/ec",
+		Storage:   config.StorageView,
+		Data: map[string]interface{}{
+			"account":          "lenstra",
+			"allow_subdomains": true,
+			"allowed_domains":  []string{"lenstra.fr"},
+			"key_type":         "EC256",
+		},
+	}, "")
+
+	// lego v5 writes every private key as PKCS#8, so the PEM label says
+	// nothing about the key; parse it and look.
+	issue := func(rolePath string) (*x509.Certificate, interface{}) {
+		t.Helper()
+		resp := makeRequest(t, b, &logical.Request{
+			Operation: logical.CreateOperation,
+			Path:      "certs/" + rolePath,
+			Storage:   config.StorageView,
+			Data:      map[string]interface{}{"common_name": "sentry.lenstra.fr"},
+		}, "")
+		block, _ := pem.Decode([]byte(resp.Data["cert"].(string)))
+		require.NotNil(t, block)
+		leaf, err := x509.ParseCertificate(block.Bytes)
+		require.NoError(t, err)
+		keyBlock, _ := pem.Decode([]byte(resp.Data["private_key"].(string)))
+		require.NotNil(t, keyBlock)
+		key, err := x509.ParsePKCS8PrivateKey(keyBlock.Bytes)
+		require.NoError(t, err)
+		return leaf, key
+	}
+
+	leaf, key := issue("lenstra.fr")
+	pub, ok := leaf.PublicKey.(*rsa.PublicKey)
+	require.True(t, ok, "a role without key_type issues RSA certificates")
+	require.Equal(t, 2048, pub.N.BitLen())
+	require.IsType(t, &rsa.PrivateKey{}, key)
+
+	leaf, key = issue("ec")
+	ecPub, ok := leaf.PublicKey.(*ecdsa.PublicKey)
+	require.True(t, ok, "an EC256 role issues EC certificates")
+	require.Equal(t, "P-256", ecPub.Curve.Params().Name)
+	require.IsType(t, &ecdsa.PrivateKey{}, key)
 }

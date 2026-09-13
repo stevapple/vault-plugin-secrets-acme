@@ -25,7 +25,7 @@ import (
 // resolvers issuing at once would otherwise check against each other's.
 var dnsChallengeMu sync.Mutex
 
-func getCertFromACMEProvider(ctx context.Context, logger log.Logger, req *logical.Request, a *account, names []string) (*certificate.Resource, error) {
+func getCertFromACMEProvider(ctx context.Context, logger log.Logger, req *logical.Request, a *account, names []string, keyType certcrypto.KeyType) (*certificate.Resource, error) {
 	if a.Provider != "" {
 		dnsChallengeMu.Lock()
 		defer dnsChallengeMu.Unlock()
@@ -44,9 +44,9 @@ func getCertFromACMEProvider(ctx context.Context, logger log.Logger, req *logica
 	request := certificate.ObtainRequest{
 		Domains: names,
 		Bundle:  true,
-		// lego v5 has no default; v4 issued RSA 2048 certificates unless told
-		// otherwise, and this keeps doing so.
-		KeyType: certcrypto.RSA2048,
+		// lego v5 has no default; the role decides, and a role that has not
+		// decided gets the RSA 2048 that v4 issued unless told otherwise.
+		KeyType: keyType,
 		// v4 put the first requested name in the Subject CN; v5 leaves the CN
 		// empty unless asked. Keep it, for whatever reads the CN.
 		EnableCommonName: true,
