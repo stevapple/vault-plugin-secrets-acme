@@ -156,6 +156,15 @@ Success! Data written to: acme/roles/lenstra.fr
   already outstanding. Certificates issued under a role that has since been
   deleted are never revoked.
 
+To revoke a certificate outright — because it has been compromised, say —
+write to `acme/revoke` instead. That is independent of `revoke_on_lease_expiry`
+and of whatever leases still carry the certificate, and it drops the certificate
+from the cache so it is not served again:
+
+```text
+$ vault write acme/revoke account=lenstra certificate=@cert.pem
+```
+
 A role with `disable_cache` has no reference count to keep, because each of its
 leases holds a certificate of its own. Such a lease going away is the end of
 that certificate, and the role's setting is applied to it directly. In the

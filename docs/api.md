@@ -19,6 +19,7 @@ update your API calls accordingly.
 * [Read Role](#read-role)
 * [Delete Role](#delete-role)
 * [Generate Certificate](#generate-certificate)
+* [Revoke Certificate](#revoke-certificate)
 * [Get the token for an HTTP-01 challenge](#get-the-token-for-an-http-01-challenge)
 * [Get the token for a TLS-ALPN-01 challenge](#get-the-token-for-a-tls-alpn-01-challenge)
 * [Read the cache state](#read-the-cache-state)
@@ -143,6 +144,29 @@ on the request and the role definition.
 
 The response is a lease.
 
+## Revoke Certificate
+
+This endpoint revokes a certificate at the ACME provider, whatever leases still
+carry it, and removes it from the cache so it is not handed out again. Roles
+that leave `revoke_on_lease_expiry` off have no other way to withdraw a
+certificate.
+
+| Method | Path            |
+| :----- | :-------------- |
+| `PUT`  | `/acme/revoke`  |
+
+### Parameters
+
+- `account` `(string: <required>)` - The ACME account to revoke the certificate with.
+- `certificate` `(string: <required>)` - The PEM encoded certificate to revoke. Either the leaf on its own or the bundle as it was issued.
+- `reason` `(int: <none>)` - An RFC 5280 reason code to record at the ACME provider: `0` unspecified, `1` keyCompromise, `3` affiliationChanged, `4` superseded, `5` cessationOfOperation. Sent only when given; which codes a provider accepts is the provider's decision.
+
+### Response
+
+- `cache_entries_removed` `(int)` - How many cached copies of the certificate were dropped.
+
+Revoking a certificate that is already revoked succeeds with a warning, and
+still drops it from the cache.
 
 ## Get the token for an HTTP-01 challenge
 
