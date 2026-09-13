@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 	"github.com/stevapple/vault-plugin-secrets-acme/acme/sidecar"
 	"github.com/stretchr/testify/require"
@@ -343,27 +344,31 @@ func TestRoles(t *testing.T) {
 	}{
 		{
 			RequestData:      map[string]interface{}{"account": "lenstra"},
-			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": false, "allowed_domains": []string{}, "cache_for_ratio": 70, "disable_cache": false, "revoke_on_lease_expiry": false},
+			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": false, "allowed_domains": []string{}, "cache_for_ratio": 70, "disable_cache": false, "revoke_on_lease_expiry": false, "key_type": "RSA2048"},
 		},
 		{
 			RequestData:      map[string]interface{}{"account": "lenstra", "allowed_domains": "sentry.lenstra.fr"},
-			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": false, "allowed_domains": []string{"sentry.lenstra.fr"}, "cache_for_ratio": 70, "disable_cache": false, "revoke_on_lease_expiry": false},
+			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": false, "allowed_domains": []string{"sentry.lenstra.fr"}, "cache_for_ratio": 70, "disable_cache": false, "revoke_on_lease_expiry": false, "key_type": "RSA2048"},
 		},
 		{
 			RequestData:      map[string]interface{}{"account": "lenstra", "allow_bare_domains": true},
-			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": true, "allow_subdomains": false, "allowed_domains": []string{}, "cache_for_ratio": 70, "disable_cache": false, "revoke_on_lease_expiry": false},
+			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": true, "allow_subdomains": false, "allowed_domains": []string{}, "cache_for_ratio": 70, "disable_cache": false, "revoke_on_lease_expiry": false, "key_type": "RSA2048"},
 		},
 		{
 			RequestData:      map[string]interface{}{"account": "lenstra", "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "cache_for_ratio": 50},
-			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "cache_for_ratio": 50, "disable_cache": false, "revoke_on_lease_expiry": false},
+			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "cache_for_ratio": 50, "disable_cache": false, "revoke_on_lease_expiry": false, "key_type": "RSA2048"},
 		},
 		{
 			RequestData:      map[string]interface{}{"account": "lenstra", "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "disable_cache": true},
-			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "cache_for_ratio": 70, "disable_cache": true, "revoke_on_lease_expiry": false},
+			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "cache_for_ratio": 70, "disable_cache": true, "revoke_on_lease_expiry": false, "key_type": "RSA2048"},
+		},
+		{
+			RequestData:      map[string]interface{}{"account": "lenstra", "key_type": "EC256"},
+			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": false, "allowed_domains": []string{}, "cache_for_ratio": 70, "disable_cache": false, "revoke_on_lease_expiry": false, "key_type": "EC256"},
 		},
 		{
 			RequestData:      map[string]interface{}{"account": "lenstra", "revoke_on_lease_expiry": true},
-			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": false, "allowed_domains": []string{}, "cache_for_ratio": 70, "disable_cache": false, "revoke_on_lease_expiry": true},
+			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": false, "allowed_domains": []string{}, "cache_for_ratio": 70, "disable_cache": false, "revoke_on_lease_expiry": true, "key_type": "RSA2048"},
 		},
 	}
 	for _, tcase := range testCases {
@@ -407,6 +412,7 @@ func TestRoles(t *testing.T) {
 			"cache_for_ratio":        70,
 			"disable_cache":          false,
 			"revoke_on_lease_expiry": false,
+			"key_type":               "RSA2048",
 		},
 	)
 
@@ -446,4 +452,36 @@ func makeRequest(t *testing.T, b logical.Backend, req *logical.Request, expected
 		}
 	}
 	return resp
+}
+
+func TestRoleKeyType(t *testing.T) {
+	config, b := getTestBackend(t)
+
+	req := &logical.Request{
+		Operation: logical.CreateOperation,
+		Path:      "roles/lenstra.fr",
+		Storage:   config.StorageView,
+		Data:      map[string]interface{}{"account": "lenstra", "key_type": "DSA"},
+	}
+	makeRequest(t, b, req, `"DSA" is not a supported key type`)
+
+	// The cache key of a role must not move because key_type now exists: a
+	// role that never set it, and one set to the default, hash as before.
+	keyFor := func(data map[string]interface{}) string {
+		t.Helper()
+		req.Data = data
+		makeRequest(t, b, req, "")
+		r, err := getRole(context.Background(), config.StorageView, req.Path)
+		require.NoError(t, err)
+		require.NotNil(t, r)
+		schema := pathCerts(&backend{}).Fields
+		k, err := getCacheKey(r, &framework.FieldData{Raw: map[string]interface{}{"role": "lenstra.fr", "common_name": "www.lenstra.fr"}, Schema: schema})
+		require.NoError(t, err)
+		return k
+	}
+
+	unset := keyFor(map[string]interface{}{"account": "lenstra"})
+	require.Equal(t, unset, keyFor(map[string]interface{}{"account": "lenstra", "key_type": "RSA2048"}))
+	// A different key type is a different certificate.
+	require.NotEqual(t, unset, keyFor(map[string]interface{}{"account": "lenstra", "key_type": "EC256"}))
 }

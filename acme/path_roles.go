@@ -55,6 +55,12 @@ func pathRoles(b *backend) []*framework.Path {
 					Type:        framework.TypeBool,
 					Description: "Revoke the certificate at the ACME provider once the last lease on it goes away. Off by default: a lease expiring is not on its own evidence that the certificate has stopped being used.",
 				},
+				"key_type": {
+					Type:          framework.TypeString,
+					Default:       defaultCertKeyType,
+					AllowedValues: keyTypes,
+					Description:   "Type of the private key generated for each certificate, named as for an account's key_type. RSA2048 by default, which is what every certificate got before the setting existed.",
+				},
 			},
 			Operations: map[logical.Operation]framework.OperationHandler{
 				logical.CreateOperation: &framework.PathOperation{
@@ -85,8 +91,20 @@ func (b *backend) roleCreateOrUpdate(ctx context.Context, req *logical.Request, 
 		return logical.ErrorResponse("cache_for_ratio should be greater than 0 and no greater than 100"), nil
 	}
 
+	keyType := data.Get("key_type").(string)
+	if _, err := getKeyType(keyType); err != nil {
+		return logical.ErrorResponse(err.Error()), nil
+	}
+	if keyType == defaultCertKeyType {
+		// Stored as the empty string so that the role hashes, and so caches,
+		// exactly as it did before key_type existed: an explicit RSA2048 and
+		// no setting at all order the same certificate.
+		keyType = ""
+	}
+
 	r := role{
 		Account:             data.Get("account").(string),
+		KeyType:             keyType,
 		AllowedDomains:      data.Get("allowed_domains").([]string),
 		AllowBareDomains:    data.Get("allow_bare_domains").(bool),
 		AllowSubdomains:     data.Get("allow_subdomains").(bool),
@@ -130,6 +148,7 @@ func (b *backend) roleRead(ctx context.Context, req *logical.Request, _ *framewo
 			"disable_cache":          r.DisableCache,
 			"cache_for_ratio":        r.CacheForRatio,
 			"revoke_on_lease_expiry": r.RevokeOnLeaseExpiry,
+			"key_type":               r.keyTypeName(),
 		},
 	}, nil
 }
@@ -160,6 +179,22 @@ type role struct {
 	// mapstructure ignores json tags, so the field still round-trips through
 	// storage in save/getRole.
 	RevokeOnLeaseExpiry bool `json:"-"`
+	// The key type does change the certificate, so it belongs in the hash;
+	// omitempty keeps roles that never set it, and roles set to the default,
+	// on the cache keys they had before the field existed.
+	KeyType string `json:",omitempty"`
+}
+
+// defaultCertKeyType is what every certificate was issued with before a role
+// could choose, and what an unset key_type still means.
+const defaultCertKeyType = "RSA2048"
+
+// keyTypeName returns the role's key type as a caller would have written it.
+func (r *role) keyTypeName() string {
+	if r.KeyType == "" {
+		return defaultCertKeyType
+	}
+	return r.KeyType
 }
 
 func getRole(ctx context.Context, storage logical.Storage, path string) (*role, error) {

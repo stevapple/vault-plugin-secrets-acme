@@ -130,7 +130,11 @@ func (b *backend) certCreate(ctx context.Context, req *logical.Request, data *fr
 	// If we did not find a cert, we have to request one
 	if cert == nil {
 		b.Logger().Debug("Contacting the ACME provider to get a new certificate")
-		cert, err = getCertFromACMEProvider(ctx, b.Logger(), req, a, names)
+		keyType, err := getKeyType(r.keyTypeName())
+		if err != nil {
+			return nil, fmt.Errorf("role has an unusable key_type: %w", err)
+		}
+		cert, err = getCertFromACMEProvider(ctx, b.Logger(), req, a, names, keyType)
 		if err != nil {
 			return logical.ErrorResponse("Failed to validate certificate signing request: %s", err), err
 		}
