@@ -1,65 +1,20 @@
-## 0.0.9
-### April 22, 2022
+# Changelog
 
-NEW FEATURES:
+Releases of this fork, from `v0.4.0` onwards, are described on its
+[releases page](https://github.com/stevapple/vault-plugin-secrets-acme/releases),
+which is written by goreleaser from the commits in each tag. There is no
+hand-maintained changelog: keeping one alongside generated release notes means
+writing every change twice, and the file this replaces had gone years and
+several releases without an entry.
 
-* The `dns_resolvers` parameter can now be set to choose the DNS resolvers used to check the propagation of the ACME DNS-01 challenge.
+This fork was cut from [Boostport/vault-plugin-secrets-acme][boostport] after
+its `v0.3.1`, which is the last upstream release it contains. Versions
+`v0.1.0` through `v0.3.1` were published there and are described on that
+repository's releases page; releases upstream has made since are not part of
+this fork, and the version numbers here are independent of them. Entries for
+`0.0.1` through `0.0.9` belonged to [remilapeyre/vault-acme][upstream], where
+this engine was written, and are kept in that repository's history rather than
+copied here.
 
-## 0.0.8
-### July 04, 2021
-
-IMPROVEMENTS:
-
-* Better error message are now returned when a certificate signing request fails.
-
-## 0.0.7
-### May 16, 2020
-
-IMPROVEMENTS:
-
-* It is now possible to update an ACME account.
-
-## 0.0.6
-### August 19, 2020
-
-IMPROVEMENTS:
-
-* Simultanous requests to create the same certificate will now return the same one to avoid sending multiple requests to the ACME provider.
-* The `provider_configuration` parameter can now be used to set the configuration of the ACME client instead of using environment variables.
-
-## 0.0.5
-### August 12, 2020
-
-BUG FIXES:
-
-* Failure to retrieve the Lego client now properly return an error.
-
-## 0.0.4
-### July 22, 2020
-
-NEW FEATURES:
-
-* It is now possible to ignore skip waiting for the DNS propagation by setting the `ignore_dns_propagation` parameter on an account. The default is `false` and will check that the ACME DNS challenge has been properly propagated before requesting a certificate.
-
-## 0.0.3
-### May 18, 2020
-
-NEW FEATURES:
-
-* It is now possible to set the type of key used for an account by setting the `key_type` parameter. Possible values are `EC256`, `EC384`, `RSA2048`, `RSA4096` and `RSA8192`.
-
-
-## 0.0.2
-### May 07, 2020
-
-BUG FIXES:
-
-* The binaries are now statically built to work with Alpine Linux.
-
-
-## 0.0.1
-### May 06, 2020
-
-NEW FEATURES:
-
-* Initial release of the Vault ACME secret engine.
+[boostport]: https://github.com/Boostport/vault-plugin-secrets-acme/releases
+[upstream]: https://github.com/remilapeyre/vault-acme
