@@ -48,7 +48,12 @@ $ sha256sum -c vault-plugin-secrets-acme_${VERSION}_checksums.txt
 ```
 
 ## Documentation
-The documentation is available at [`website/source/docs/secrets/acme/index.html.md`](website/source/docs/secrets/acme/index.html.md).
+The documentation lives in [`docs/`](docs/):
+
+- [`docs/index.md`](docs/index.md) — what the engine does and how to set it up
+- [`docs/api.md`](docs/api.md) — every endpoint and parameter
+- [`docs/dns-providers.md`](docs/dns-providers.md) — configuring a DNS-01 provider
+- [`docs/sidecar.md`](docs/sidecar.md) — the sidecar, for HTTP-01 and TLS-ALPN-01
 
 ## How to Use
 Using this plugin in Docker requires manually setting the `mlock` file capability
