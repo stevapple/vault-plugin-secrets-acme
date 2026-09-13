@@ -165,6 +165,9 @@ certificate.
 
 - `cache_entries_removed` `(int)` - How many cached copies of the certificate were dropped.
 
+Revoking a certificate that is already revoked succeeds with a warning, and
+still drops it from the cache.
+
 ## Get the token for an HTTP-01 challenge
 
 This endpoint returns the information needed to solve the HTTP-01 challenge.

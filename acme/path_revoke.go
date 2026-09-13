@@ -73,8 +73,15 @@ func (b *backend) certRevokeNow(ctx context.Context, req *logical.Request, data 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get LEGO client: %w", err)
 	}
+	var warning string
 	if err = client.Certificate.RevokeWithReason(ctx, []byte(certificate), reason); err != nil {
-		return nil, fmt.Errorf("failed to revoke cert: %w", err)
+		if !alreadyRevoked(err) {
+			return nil, fmt.Errorf("failed to revoke cert: %w", err)
+		}
+		// Idempotent: the certificate is in the state the caller asked for.
+		// The cache still has to be checked, since an earlier revocation by
+		// another client would not have touched it.
+		warning = "The certificate was already revoked at the ACME provider."
 	}
 
 	// Drop it from the cache too, or the engine carries on handing out a
@@ -84,11 +91,16 @@ func (b *backend) certRevokeNow(ctx context.Context, req *logical.Request, data 
 		return nil, err
 	}
 
-	return &logical.Response{
+	resp := &logical.Response{
 		Data: map[string]interface{}{
 			"cache_entries_removed": purged,
 		},
-	}, nil
+	}
+	if warning != "" {
+		resp.AddWarning(warning)
+	}
+
+	return resp, nil
 }
 
 func (b *backend) purgeCachedCert(ctx context.Context, storage logical.Storage, certificate string) (int, error) {

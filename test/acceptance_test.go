@@ -216,6 +216,32 @@ func TestVault(t *testing.T) {
 	require.NoError(t, err)
 	status = getCertificateStatus(t, secret.Data["url"].(string))
 	require.Equal(t, "Valid", status)
+
+	// Revoke it on demand instead, with a reason. A second request for the
+	// same certificate succeeds with a warning, since it is already revoked.
+	revoked, err := logical.Write(
+		"acme/revoke",
+		map[string]interface{}{
+			"account":     "lenstra",
+			"certificate": secret.Data["cert"],
+			"reason":      1,
+		},
+	)
+	require.NoError(t, err)
+	require.Empty(t, revoked.Warnings)
+	status = getCertificateStatus(t, secret.Data["url"].(string))
+	require.Equal(t, "Revoked", status)
+
+	again, err := logical.Write(
+		"acme/revoke",
+		map[string]interface{}{
+			"account":     "lenstra",
+			"certificate": secret.Data["cert"],
+		},
+	)
+	require.NoError(t, err)
+	require.Len(t, again.Warnings, 1)
+	require.Contains(t, again.Warnings[0], "already revoked")
 }
 
 func getCertificateStatus(t *testing.T, url string) string {

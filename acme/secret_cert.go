@@ -114,6 +114,13 @@ func (b *backend) revokeLeaseCertificate(ctx context.Context, req *logical.Reque
 		return fmt.Errorf("failed to get LEGO client: %w", err)
 	}
 	if err = client.Certificate.Revoke(ctx, []byte(cert)); err != nil {
+		if alreadyRevoked(err) {
+			// Through acme/revoke, another client, or the CA. The outcome is
+			// the one the lease wanted, and failing here would leave Vault
+			// retrying the lease revocation indefinitely.
+			b.Logger().Debug("Certificate was already revoked, nothing left to do")
+			return nil
+		}
 		return fmt.Errorf("failed to revoke cert: %v", err)
 	}
 
