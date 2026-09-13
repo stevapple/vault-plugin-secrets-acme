@@ -45,6 +45,10 @@ func pathRoles(b *backend) []*framework.Path {
 					Type:    framework.TypeInt,
 					Default: 70,
 				},
+				"revoke_on_lease_expiry": {
+					Type:        framework.TypeBool,
+					Description: "Revoke the certificate at the ACME provider once the last lease on it goes away. Off by default: a lease expiring is not on its own evidence that the certificate has stopped being used.",
+				},
 			},
 			Operations: map[logical.Operation]framework.OperationHandler{
 				logical.CreateOperation: &framework.PathOperation{
@@ -76,12 +80,13 @@ func (b *backend) roleCreateOrUpdate(ctx context.Context, req *logical.Request, 
 	}
 
 	r := role{
-		Account:          data.Get("account").(string),
-		AllowedDomains:   data.Get("allowed_domains").([]string),
-		AllowBareDomains: data.Get("allow_bare_domains").(bool),
-		AllowSubdomains:  data.Get("allow_subdomains").(bool),
-		DisableCache:     data.Get("disable_cache").(bool),
-		CacheForRatio:    cacheForRatio,
+		Account:             data.Get("account").(string),
+		AllowedDomains:      data.Get("allowed_domains").([]string),
+		AllowBareDomains:    data.Get("allow_bare_domains").(bool),
+		AllowSubdomains:     data.Get("allow_subdomains").(bool),
+		DisableCache:        data.Get("disable_cache").(bool),
+		CacheForRatio:       cacheForRatio,
+		RevokeOnLeaseExpiry: data.Get("revoke_on_lease_expiry").(bool),
 	}
 	if err := r.save(ctx, req.Storage, req.Path); err != nil {
 		return nil, err
@@ -101,12 +106,13 @@ func (b *backend) roleRead(ctx context.Context, req *logical.Request, _ *framewo
 
 	return &logical.Response{
 		Data: map[string]interface{}{
-			"account":            r.Account,
-			"allowed_domains":    r.AllowedDomains,
-			"allow_bare_domains": r.AllowBareDomains,
-			"allow_subdomains":   r.AllowSubdomains,
-			"disable_cache":      r.DisableCache,
-			"cache_for_ratio":    r.CacheForRatio,
+			"account":                r.Account,
+			"allowed_domains":        r.AllowedDomains,
+			"allow_bare_domains":     r.AllowBareDomains,
+			"allow_subdomains":       r.AllowSubdomains,
+			"disable_cache":          r.DisableCache,
+			"cache_for_ratio":        r.CacheForRatio,
+			"revoke_on_lease_expiry": r.RevokeOnLeaseExpiry,
 		},
 	}, nil
 }
@@ -131,6 +137,12 @@ type role struct {
 	AllowSubdomains  bool
 	DisableCache     bool
 	CacheForRatio    int
+	// Kept out of the JSON encoding because getCacheKey hashes this struct:
+	// revocation policy does not change the certificate that gets issued, so
+	// toggling it must not orphan every cache entry under the role.
+	// mapstructure ignores json tags, so the field still round-trips through
+	// storage in save/getRole.
+	RevokeOnLeaseExpiry bool `json:"-"`
 }
 
 func getRole(ctx context.Context, storage logical.Storage, path string) (*role, error) {

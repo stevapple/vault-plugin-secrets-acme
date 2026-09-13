@@ -132,14 +132,16 @@ func TestVault(t *testing.T) {
 
 	require.Equal(t, created.Data["registration_uri"], updated.Data["registration_uri"])
 
-	// Create a role
+	// Create a role. Revocation on lease expiry is opt-in, and the lease
+	// revocation below expects it.
 	_, err = logical.Write(
 		"acme/roles/lenstra.fr",
 		map[string]interface{}{
-			"account":            "lenstra",
-			"allowed_domains":    "lenstra.fr",
-			"allow_bare_domains": false,
-			"allow_subdomains":   true,
+			"account":                "lenstra",
+			"allowed_domains":        "lenstra.fr",
+			"allow_bare_domains":     false,
+			"allow_subdomains":       true,
+			"revoke_on_lease_expiry": true,
 		},
 	)
 	require.NoError(t, err)
@@ -184,6 +186,34 @@ func TestVault(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.NotEqual(t, url, secret.Data["url"].(string))
+	status = getCertificateStatus(t, secret.Data["url"].(string))
+	require.Equal(t, "Valid", status)
+
+	// A role that leaves revoke_on_lease_expiry at its default keeps the
+	// certificate valid when the lease goes away.
+	_, err = logical.Write(
+		"acme/roles/keep.lenstra.fr",
+		map[string]interface{}{
+			"account":          "lenstra",
+			"allowed_domains":  "lenstra.fr",
+			"allow_subdomains": true,
+		},
+	)
+	require.NoError(t, err)
+	secret, err = logical.Write(
+		"acme/certs/keep.lenstra.fr",
+		map[string]interface{}{
+			"common_name": "keep.lenstra.fr",
+		},
+	)
+	require.NoError(t, err)
+	_, err = logical.Write(
+		"sys/leases/revoke",
+		map[string]interface{}{
+			"lease_id": secret.LeaseID,
+		},
+	)
+	require.NoError(t, err)
 	status = getCertificateStatus(t, secret.Data["url"].(string))
 	require.Equal(t, "Valid", status)
 }

@@ -90,6 +90,7 @@ This endpoint creates or updates a role definition.
 - `allow_subdomains` `(bool: false)` - Whether to accept a request for a certificate containing a subdomain of an allowed domain.
 - `disable_cache` `(bool: false)` - Whether to disable the cache.
 - `cache_for_ratio` `(int: 70)` - For how long a cached cert should be used, e.g. a value of 70 means that a cached certificate will be used until 70% of its lifetime will be reached, then a new certificate will be requested.
+- `revoke_on_lease_expiry` `(bool: false)` - Whether to revoke the certificate at the ACME provider once the last lease on it is revoked or expires. Off by default, because a lease ending is not on its own evidence that the certificate has stopped being used. Read when the lease is revoked rather than when the certificate is issued, so it also applies to leases that are already outstanding.
 
 ## List Roles
 

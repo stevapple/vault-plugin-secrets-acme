@@ -196,6 +196,9 @@ func createRole(t *testing.T, b logical.Backend, storage logical.Storage) {
 			"account":          "lenstra",
 			"allow_subdomains": true,
 			"allowed_domains":  []string{"lenstra.fr"},
+			// The certificate tests revoke a lease and expect the certificate
+			// revoked at the provider, which a role now has to ask for.
+			"revoke_on_lease_expiry": true,
 		},
 	}
 	makeRequest(t, b, req, "")
@@ -340,23 +343,27 @@ func TestRoles(t *testing.T) {
 	}{
 		{
 			RequestData:      map[string]interface{}{"account": "lenstra"},
-			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": false, "allowed_domains": []string{}, "cache_for_ratio": 70, "disable_cache": false},
+			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": false, "allowed_domains": []string{}, "cache_for_ratio": 70, "disable_cache": false, "revoke_on_lease_expiry": false},
 		},
 		{
 			RequestData:      map[string]interface{}{"account": "lenstra", "allowed_domains": "sentry.lenstra.fr"},
-			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": false, "allowed_domains": []string{"sentry.lenstra.fr"}, "cache_for_ratio": 70, "disable_cache": false},
+			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": false, "allowed_domains": []string{"sentry.lenstra.fr"}, "cache_for_ratio": 70, "disable_cache": false, "revoke_on_lease_expiry": false},
 		},
 		{
 			RequestData:      map[string]interface{}{"account": "lenstra", "allow_bare_domains": true},
-			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": true, "allow_subdomains": false, "allowed_domains": []string{}, "cache_for_ratio": 70, "disable_cache": false},
+			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": true, "allow_subdomains": false, "allowed_domains": []string{}, "cache_for_ratio": 70, "disable_cache": false, "revoke_on_lease_expiry": false},
 		},
 		{
 			RequestData:      map[string]interface{}{"account": "lenstra", "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "cache_for_ratio": 50},
-			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "cache_for_ratio": 50, "disable_cache": false},
+			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "cache_for_ratio": 50, "disable_cache": false, "revoke_on_lease_expiry": false},
 		},
 		{
 			RequestData:      map[string]interface{}{"account": "lenstra", "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "disable_cache": true},
-			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "cache_for_ratio": 70, "disable_cache": true},
+			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "cache_for_ratio": 70, "disable_cache": true, "revoke_on_lease_expiry": false},
+		},
+		{
+			RequestData:      map[string]interface{}{"account": "lenstra", "revoke_on_lease_expiry": true},
+			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": false, "allowed_domains": []string{}, "cache_for_ratio": 70, "disable_cache": false, "revoke_on_lease_expiry": true},
 		},
 	}
 	for _, tcase := range testCases {
@@ -393,12 +400,13 @@ func TestRoles(t *testing.T) {
 		t,
 		resp.Data,
 		map[string]interface{}{
-			"account":            "lenstra",
-			"allow_bare_domains": false,
-			"allow_subdomains":   true,
-			"allowed_domains":    []string{"lenstra.fr"},
-			"cache_for_ratio":    70,
-			"disable_cache":      false,
+			"account":                "lenstra",
+			"allow_bare_domains":     false,
+			"allow_subdomains":       true,
+			"allowed_domains":        []string{"lenstra.fr"},
+			"cache_for_ratio":        70,
+			"disable_cache":          false,
+			"revoke_on_lease_expiry": false,
 		},
 	)
 
