@@ -9,6 +9,7 @@ import (
 	"crypto"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 
 	"github.com/go-acme/lego/v4/lego"
 	"github.com/go-acme/lego/v4/registration"
@@ -66,20 +67,32 @@ func getAccount(ctx context.Context, storage logical.Storage, path string) (*acc
 	}
 
 	block, _ := pem.Decode([]byte(d["private_key"].(string)))
+	if block == nil {
+		return nil, fmt.Errorf("no PEM block found in the account key at %q", path)
+	}
 	privateKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 	if err != nil {
 		return nil, err
 	}
 
+	// key_type, provider_configuration, ignore_dns_propagation and
+	// dns_resolvers were each added after the first release, so an account
+	// written before one of them existed has no such key. Read them as
+	// optional; everything else has been written since the first version.
 	providerConfiguration := map[string]string{}
-	for k, v := range d["provider_configuration"].(map[string]interface{}) {
-		providerConfiguration[k] = v.(string)
+	if raw, ok := d["provider_configuration"].(map[string]interface{}); ok {
+		for k, v := range raw {
+			if value, ok := v.(string); ok {
+				providerConfiguration[k] = value
+			}
+		}
 	}
+	keyType, _ := d["key_type"].(string)
 
 	a := &account{
 		Email:   d["contact"].(string),
 		Key:     privateKey,
-		KeyType: d["key_type"].(string),
+		KeyType: keyType,
 		Registration: &registration.Resource{
 			URI: d["registration_uri"].(string),
 		},
@@ -91,13 +104,15 @@ func getAccount(ctx context.Context, storage logical.Storage, path string) (*acc
 		EnableTLSALPN01:       d["enable_tls_alpn_01"].(bool),
 	}
 
-	if ignoreDNSPropagation, ok := d["ignore_dns_propagation"]; ok {
-		a.IgnoreDNSPropagation = ignoreDNSPropagation.(bool)
+	if ignoreDNSPropagation, ok := d["ignore_dns_propagation"].(bool); ok {
+		a.IgnoreDNSPropagation = ignoreDNSPropagation
 	}
 
-	a.DNSResolvers = make([]string, len(d["dns_resolvers"].([]interface{})))
-	for i, resolver := range d["dns_resolvers"].([]interface{}) {
-		a.DNSResolvers[i] = resolver.(string)
+	if resolvers, ok := d["dns_resolvers"].([]interface{}); ok {
+		a.DNSResolvers = make([]string, len(resolvers))
+		for i, resolver := range resolvers {
+			a.DNSResolvers[i] = resolver.(string)
+		}
 	}
 
 	return a, nil
