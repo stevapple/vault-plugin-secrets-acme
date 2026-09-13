@@ -1,4 +1,4 @@
-module github.com/Boostport/vault-plugin-secrets-acme/acme/sidecar
+module github.com/stevapple/vault-plugin-secrets-acme/acme/sidecar
 
 go 1.22.7
 
