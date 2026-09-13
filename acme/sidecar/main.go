@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/go-acme/lego/v5/challenge/tlsalpn01"
 	log "github.com/hashicorp/go-hclog"
@@ -98,23 +99,36 @@ func NewHTTP01Provider(client client, logger log.Logger) Provider {
 }
 
 func (p http01Provider) Listen(addr string) error {
-	handler := acmeHandler{
-		client: p.client,
-	}
-	http.Handle("/.well-known/acme-challenge/", handler)
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("failed to create listener: %w", err)
 	}
-	go func() {
-		if err := http.Serve(listener, nil); err != nil {
-			p.logger.Error("HTTP-01 listener stopped", "addr", addr, "error", err)
-		}
-	}()
+	go p.serve(listener)
 
 	return nil
 }
 
+// serve answers challenge requests on the listener until it is closed.
+//
+// The handler goes on a mux of the provider's own rather than on
+// http.DefaultServeMux: a second provider in the same process would otherwise
+// panic registering the same pattern, and every provider would answer with
+// whichever client registered first rather than its own.
+func (p http01Provider) serve(listener net.Listener) {
+	mux := http.NewServeMux()
+	mux.Handle("/.well-known/acme-challenge/", acmeHandler{client: p.client})
+
+	server := &http.Server{
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+	if err := server.Serve(listener); err != nil {
+		p.logger.Error("HTTP-01 listener stopped", "addr", listener.Addr().String(), "error", err)
+	}
+}
+
+// Close has nothing to stop: the server lives as long as the process, and
+// nothing calls Close. It stays so the provider still satisfies io.Closer.
 func (p http01Provider) Close() error {
 	return nil
 }
