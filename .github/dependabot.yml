@@ -1,0 +1,33 @@
+version: 2
+updates:
+  # Both ecosystems are configured but dormant: a limit of 0 opens no version
+  # update pull requests while the release sequence is still landing, and
+  # security updates are unaffected by it. Raise the limit once the sequence
+  # is tagged.
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
+  - package-ecosystem: gomod
+    directory: /acme/sidecar
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0
+    groups:
+      actions:
+        patterns:
+          - "*"
