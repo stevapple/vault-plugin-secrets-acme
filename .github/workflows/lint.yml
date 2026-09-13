@@ -14,8 +14,14 @@ concurrency:
 
 jobs:
   golangci-lint:
-    name: golangci-lint
+    name: golangci-lint (${{ matrix.module }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # golangci-lint stops at a module boundary, so the sidecar module has
+        # to be linted from its own directory or it is not linted at all.
+        module: [".", "acme/sidecar"]
     steps:
     - name: Checkout
       uses: actions/checkout@v7
@@ -32,3 +38,4 @@ jobs:
         # releases, so floating them turns an unrelated pull request red with
         # no code change. Patch releases are fixes, and are worth taking.
         version: v2.13
+        working-directory: ${{ matrix.module }}
