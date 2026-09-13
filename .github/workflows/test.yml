@@ -15,16 +15,12 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  test:
-    name: Run tests (Vault ${{ matrix.vault }})
+  # The unit tests drive Pebble directly and never touch a Vault server, so
+  # they run once. Only the acceptance tests, which load the plugin into a
+  # real Vault, are worth repeating per Vault version.
+  unit:
+    name: Unit tests
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # Newest of each major Vault line still in use.
-        vault: ["1.21.4", "2.1.0"]
-    env:
-      VAULT_VERSION: ${{ matrix.vault }}
     steps:
     - name: Checkout
       uses: actions/checkout@v7
@@ -48,9 +44,38 @@ jobs:
         export PATH=$PATH:$(go env GOPATH)/bin
         make test
 
-    - name: Run acceptance tests
+  acceptance:
+    name: Acceptance tests (Vault ${{ matrix.vault }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Newest of each major Vault line still in use.
+        vault: ["1.21.4", "2.1.0"]
+    env:
+      VAULT_VERSION: ${{ matrix.vault }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v7
+
+    - name: Set up Go
+      uses: actions/setup-go@v7
+      with:
+        go-version-file: go.work
+
+    - name: Install Pebble test ACME server
+      env:
+        GOTOOLCHAIN: auto
+      run: |
+        go install github.com/letsencrypt/pebble/v2/...@v2.10.1
+
+    - name: Install Vault
       run: |
         curl -sLo vault.zip "https://releases.hashicorp.com/vault/$VAULT_VERSION/vault_${VAULT_VERSION}_linux_amd64.zip"
         unzip vault.zip
         sudo mv vault /usr/local/bin/vault
+
+    - name: Run acceptance tests
+      run: |
+        export PATH=$PATH:$(go env GOPATH)/bin
         make testacc
