@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -67,16 +68,18 @@ func (a acmeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := fmt.Sprintf("challenges/http-01/%s", token)
 
 	s, err := a.client.Read(path)
+	// Nothing useful can be done about a write to the response failing: the
+	// ACME server has gone away, and it will report the challenge as failed.
 	if err != nil {
-		fmt.Fprintf(w, "failed to read token: %s", err.Error())
+		_, _ = fmt.Fprintf(w, "failed to read token: %s", err.Error())
 	} else if err, ok := s.Data["error"]; ok {
-		fmt.Fprintf(w, "failed to read token: %s", err)
+		_, _ = fmt.Fprintf(w, "failed to read token: %s", err)
 	} else {
 		headers := w.Header()
 		headers.Set("host", s.Data["key"].(string))
 		headers.Set("Content-Type", "application/octet-stream")
 		w.WriteHeader(200)
-		fmt.Fprintf(w, s.Data["key"].(string))
+		_, _ = io.WriteString(w, s.Data["key"].(string))
 	}
 }
 
@@ -98,7 +101,11 @@ func (p http01Provider) Listen(addr string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create listener: %w", err)
 	}
-	go http.Serve(listener, nil)
+	go func() {
+		if err := http.Serve(listener, nil); err != nil {
+			p.logger.Error("HTTP-01 listener stopped", "addr", addr, "error", err)
+		}
+	}()
 
 	return nil
 }
@@ -157,8 +164,11 @@ func (p tlsALPN01Provider) Listen(addr string) error {
 			if err != nil {
 				panic(err)
 			}
-			conn.(*tls.Conn).Handshake()
-			conn.Close()
+			// The handshake is the whole exchange: it presents the challenge
+			// certificate, and a failure only means the peer was not the
+			// ACME server, or gave up. Either way the connection is done.
+			_ = conn.(*tls.Conn).Handshake()
+			_ = conn.Close()
 		}
 	}()
 

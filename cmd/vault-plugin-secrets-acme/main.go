@@ -12,9 +12,17 @@ import (
 var version = ""
 
 func main() {
+	logger := hclog.New(&hclog.LoggerOptions{})
+
 	apiClientMeta := &api.PluginAPIClientMeta{}
 	flags := apiClientMeta.FlagSet()
-	flags.Parse(os.Args[1:])
+	// The flag set continues on error, so an argument it cannot parse would
+	// otherwise be dropped and every flag after it silently ignored — the
+	// TLS settings Vault passes among them.
+	if err := flags.Parse(os.Args[1:]); err != nil {
+		logger.Error("invalid plugin arguments", "error", err)
+		os.Exit(1)
+	}
 
 	tlsConfig := apiClientMeta.GetTLSConfig()
 	tlsProviderFunc := api.VaultPluginTLSProvider(tlsConfig)
@@ -24,8 +32,6 @@ func main() {
 		TLSProviderFunc:    tlsProviderFunc,
 	})
 	if err != nil {
-		logger := hclog.New(&hclog.LoggerOptions{})
-
 		logger.Error("plugin shutting down", "error", err)
 		os.Exit(1)
 	}

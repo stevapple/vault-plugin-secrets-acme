@@ -146,7 +146,7 @@ func getTestConfig(t *testing.T) (*logical.BackendConfig, logical.Backend) {
 		if err := peeble.Process.Kill(); err != nil {
 			t.Fatal(err)
 		}
-		peeble.Process.Wait()
+		_, _ = peeble.Process.Wait()
 	})
 
 	challtestsrv := exec.Command("pebble-challtestsrv", "-http01", "", "-https01", "", "-tlsalpn01", "")
@@ -159,7 +159,7 @@ func getTestConfig(t *testing.T) (*logical.BackendConfig, logical.Backend) {
 		if err := challtestsrv.Process.Kill(); err != nil {
 			t.Fatal(err)
 		}
-		challtestsrv.Process.Wait()
+		_, _ = challtestsrv.Process.Wait()
 	})
 	time.Sleep(1 * time.Second)
 
@@ -276,7 +276,7 @@ func TestHTTP01Challenge(t *testing.T) {
 	provider := sidecar.NewHTTP01Provider(mockClient, b.Logger())
 
 	// pebble uses the 5002 port
-	go provider.Listen(":5002")
+	go func() { _ = provider.Listen(":5002") }()
 
 	req = &logical.Request{
 		Operation: logical.CreateOperation,
@@ -311,7 +311,7 @@ func TestTLSALPN01Challenge(t *testing.T) {
 	provider := sidecar.NewTLSALPN01Provider(mockClient, b.Logger())
 
 	// pebble uses the 5001 port
-	go provider.Listen(":5001")
+	go func() { _ = provider.Listen(":5001") }()
 
 	req = &logical.Request{
 		Operation: logical.CreateOperation,
