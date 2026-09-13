@@ -1,0 +1,60 @@
+name: Bug report
+description: Something the engine does that it should not
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If the problem is exploitable — it discloses a key or a credential, or
+        lets a role obtain a certificate outside its `allowed_domains` — close
+        this and report it privately instead. See [SECURITY.md](../blob/main/SECURITY.md).
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you expected instead, and what you got.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: >
+        The role and account configuration, and the request that triggered it.
+        Redact credentials — the parameter names and shapes are what matter.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Plugin version
+      placeholder: v0.5.0, or a commit
+    validations:
+      required: true
+  - type: input
+    id: vault-version
+    attributes:
+      label: Vault version
+      placeholder: 2.1.0
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: OS and architecture
+      placeholder: linux/amd64
+    validations:
+      required: true
+  - type: input
+    id: provider
+    attributes:
+      label: ACME directory and DNS provider
+      description: Let's Encrypt production, staging, Pebble; and the lego provider name.
+      placeholder: acme-staging-v02.api.letsencrypt.org, cloudflare
+  - type: textarea
+    id: logs
+    attributes:
+      label: Vault server log
+      description: The plugin logs through Vault. Debug level is far more useful than info.
+      render: shell

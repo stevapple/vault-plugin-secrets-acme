@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a vulnerability
+    url: https://github.com/stevapple/vault-plugin-secrets-acme/security/advisories/new
+    about: Anything exploitable goes here privately, not in a public issue.
+  - name: Upstream project
+    url: https://github.com/Boostport/vault-plugin-secrets-acme
+    about: This is a fork. A problem that is not specific to it belongs upstream too.
