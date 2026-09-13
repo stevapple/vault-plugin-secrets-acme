@@ -30,6 +30,11 @@ jobs:
         go-version-file: go.work
 
     - name: Install Pebble test ACME server
+      # Pebble is a test dependency built from source, and the Go it needs is
+      # its own business: setup-go pins GOTOOLCHAIN=local to this repository's
+      # go.work, which is the right floor for our code but not for Pebble's.
+      env:
+        GOTOOLCHAIN: auto
       run: |
         go install github.com/letsencrypt/pebble/v2/...@main
 
