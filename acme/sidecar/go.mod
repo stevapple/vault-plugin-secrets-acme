@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/go-acme/lego/v5 v5.4.1
 	github.com/hashicorp/go-hclog v1.6.3
-	github.com/hashicorp/vault/api v1.20.0
+	github.com/hashicorp/vault/api v1.23.0
 	github.com/hashicorp/vault/sdk v0.25.1
 )
 
