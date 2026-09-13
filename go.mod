@@ -3,12 +3,12 @@ module github.com/stevapple/vault-plugin-secrets-acme
 go 1.24.4
 
 require (
-	github.com/stevapple/vault-plugin-secrets-acme/acme/sidecar v0.0.0-20241107232223-76c166cf0512
 	github.com/go-acme/lego/v4 v4.23.1
 	github.com/go-viper/mapstructure/v2 v2.3.0
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/vault/api v1.20.0
 	github.com/hashicorp/vault/sdk v0.18.0
+	github.com/stevapple/vault-plugin-secrets-acme/acme/sidecar v0.0.0-20241107232223-76c166cf0512
 	github.com/stretchr/testify v1.10.0
 )
 
