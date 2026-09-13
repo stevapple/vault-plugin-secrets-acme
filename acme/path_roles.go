@@ -96,7 +96,7 @@ func (b *backend) roleRead(ctx context.Context, req *logical.Request, _ *framewo
 		return nil, err
 	}
 	if r == nil {
-		return logical.ErrorResponse("This role does not exists"), nil
+		return logical.ErrorResponse("This role does not exist"), nil
 	}
 
 	return &logical.Response{

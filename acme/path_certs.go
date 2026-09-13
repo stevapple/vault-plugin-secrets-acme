@@ -56,7 +56,7 @@ func (b *backend) certCreate(ctx context.Context, req *logical.Request, data *fr
 		return nil, err
 	}
 	if r == nil {
-		return logical.ErrorResponse("This role does not exists."), nil
+		return logical.ErrorResponse("This role does not exist"), nil
 	}
 	if err = validateNames(b, r, names); err != nil {
 		return logical.ErrorResponse(err.Error()), nil
@@ -68,7 +68,7 @@ func (b *backend) certCreate(ctx context.Context, req *logical.Request, data *fr
 		return nil, err
 	}
 	if a == nil {
-		return logical.ErrorResponse("This account does not exists"), nil
+		return logical.ErrorResponse("This account does not exist"), nil
 	}
 	// Lookup cache
 	cacheKey, err := getCacheKey(r, data)

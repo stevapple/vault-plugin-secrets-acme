@@ -206,7 +206,7 @@ func (b *backend) accountRead(ctx context.Context, req *logical.Request, _ *fram
 		return nil, err
 	}
 	if a == nil {
-		return logical.ErrorResponse("This account does not exists"), nil
+		return logical.ErrorResponse("This account does not exist"), nil
 	}
 
 	return &logical.Response{
@@ -232,7 +232,7 @@ func (b *backend) accountDelete(ctx context.Context, req *logical.Request, _ *fr
 		return nil, err
 	}
 	if a == nil {
-		return logical.ErrorResponse("This account does not exists"), nil
+		return logical.ErrorResponse("This account does not exist"), nil
 	}
 
 	client, err := a.getClient()
