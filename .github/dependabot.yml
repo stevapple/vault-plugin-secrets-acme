@@ -27,3 +27,7 @@ updates:
     schedule:
       interval: monthly
     open-pull-requests-limit: 0
+    groups:
+      actions:
+        patterns:
+          - "*"
