@@ -8,8 +8,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-acme/lego/v4/certcrypto"
-	"github.com/go-acme/lego/v4/registration"
+	"github.com/go-acme/lego/v5/acme"
+	"github.com/go-acme/lego/v5/certcrypto"
+	"github.com/go-acme/lego/v5/registration"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -175,16 +176,16 @@ func (b *backend) accountWrite(ctx context.Context, req *logical.Request, data *
 		return nil, err
 	}
 
-	var reg *registration.Resource
+	var reg *acme.ExtendedAccount
 	options := registration.RegisterOptions{
 		TermsOfServiceAgreed: termsOfServiceAgreed,
 	}
 	if update {
 		b.Logger().Info("Updating account")
-		reg, err = client.Registration.UpdateRegistration(options)
+		reg, err = client.Registration.UpdateRegistration(ctx, options)
 	} else {
 		b.Logger().Info("Registering new account")
-		reg, err = client.Registration.Register(options)
+		reg, err = client.Registration.Register(ctx, options)
 	}
 
 	if err != nil {
@@ -212,7 +213,7 @@ func (b *backend) accountRead(ctx context.Context, req *logical.Request, _ *fram
 	return &logical.Response{
 		Data: map[string]interface{}{
 			"server_url":              a.ServerURL,
-			"registration_uri":        a.Registration.URI,
+			"registration_uri":        a.Registration.Location,
 			"contact":                 a.GetEmail(),
 			"terms_of_service_agreed": a.TermsOfServiceAgreed,
 			"key_type":                a.KeyType,
@@ -240,7 +241,7 @@ func (b *backend) accountDelete(ctx context.Context, req *logical.Request, _ *fr
 		return nil, fmt.Errorf("failed to instantiate new client: %w", err)
 	}
 
-	if err = client.Registration.DeleteRegistration(); err != nil {
+	if err = client.Registration.DeleteRegistration(ctx); err != nil {
 		return nil, fmt.Errorf("failed to deactivate registration: %w", err)
 	}
 

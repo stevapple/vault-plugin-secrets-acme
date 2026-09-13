@@ -24,6 +24,14 @@ The ACME secret engine supports the following challenges:
   DNS providers and their configuration is documented in the
   [DNS providers](dns-providers.md) documentation.
 
+  Provider names follow lego's. Since lego v5 some have changed: `acme-dns`
+  is now `acmedns`, `azure` is `azuredns`, `rfc2136` is `dnsupdate` and
+  `webnames` is `webnamesru`, and `brandit`, `cloudxns`, `dnspod`,
+  `googledomains`, `iij` and `iwantmyname` are gone. An account configured
+  with one of the old names fails to issue until its `provider` is updated;
+  the credentials it needs may have changed too, so check the provider's
+  entry.
+
 - **HTTP-01 challenge:** the HTTP-01 challenge confirms that you control the
   domain Vault is requesting a certificate for by putting a file at
   `http://<YOUR_DOMAIN>/.well-known/acme-challenge/<TOKEN>`. The ACME secret

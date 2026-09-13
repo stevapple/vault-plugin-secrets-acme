@@ -21,6 +21,9 @@ func secretCert(b *backend) *framework.Secret {
 			"domain": {
 				Type: framework.TypeString,
 			},
+			"domains": {
+				Type: framework.TypeCommaStringSlice,
+			},
 			"url": {
 				Type: framework.TypeString,
 			},
@@ -140,7 +143,7 @@ func (b *backend) certRevoke(ctx context.Context, req *logical.Request, _ *frame
 			return logical.ErrorResponse("Failed to get LEGO client."), err
 		}
 		cert := req.Secret.InternalData["cert"].(string)
-		err = client.Certificate.Revoke([]byte(cert))
+		err = client.Certificate.Revoke(ctx, []byte(cert))
 		if err != nil {
 			return nil, fmt.Errorf("failed to revoke cert: %v", err)
 		}

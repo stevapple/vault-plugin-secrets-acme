@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-acme/lego/v4/certcrypto"
-	"github.com/go-acme/lego/v4/certificate"
+	"github.com/go-acme/lego/v5/certcrypto"
+	"github.com/go-acme/lego/v5/certificate"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -152,7 +152,8 @@ func (b *backend) getSecret(accountPath, rolePath, cacheKey string, cert *certif
 
 	s := b.Secret(secretCertType).Response(
 		map[string]interface{}{
-			"domain":      cert.Domain,
+			"domain":      firstDomain(cert.Domains),
+			"domains":     cert.Domains,
 			"url":         cert.CertStableURL,
 			"private_key": string(cert.PrivateKey),
 			"cert":        string(cert.Certificate),
