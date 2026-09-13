@@ -6,6 +6,10 @@ users and applications to retrieve TLS certificates validated by an [ACME provid
 like [Let's Encrypt](https://letsencrypt.org/) without having to give each
 application permission to modify DNS and using Vault's audit and policy systems.
 
+Certificates are consumed with consul-template's `pkiCert` function, and so
+from Vault Agent templates, without re-issuing on every agent restart — see
+[Use with consul-template and Vault Agent](docs/index.md#use-with-consul-template-and-vault-agent).
+
 Discussion: https://github.com/hashicorp/vault/issues/4950
 
 ## About this fork
