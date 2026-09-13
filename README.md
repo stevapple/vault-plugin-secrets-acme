@@ -34,6 +34,10 @@ The checksum for the binaries are signed with cosign. To verify the binaries, do
 Then download the release binaries you need. Here, we just download the linux amd64 binary:
 -  `vault-plugin-secrets-acme_${VERSION}_linux_amd64`
 
+The release binaries carry the version and platform in their name. Once verified,
+rename the one you use to `vault-plugin-secrets-acme` before placing it in Vault's
+plugin directory, as the instructions below assume that name.
+
 Then run the following commands to verify the checksums and signature:
 ```sh
 # Verify checksum signature
@@ -52,11 +56,11 @@ to both Vault and the acme plugin:
 
 ```sh
 $ sudo setcap cap_ipc_lock=+ep $(readlink -f $(which vault))
-$ sudo setcap cap_ipc_lock=+ep /vault/plugins/acme-plugin
+$ sudo setcap cap_ipc_lock=+ep /vault/plugins/vault-plugin-secrets-acme
 ```
 
 After setting [`plugin_directory`](https://www.vaultproject.io/docs/configuration/#plugin_directory)
-and setting the correct shasum in Vault (`vault write sys/plugins/catalog/secret/acme sha_256=$(sha256sum acme-plugin) command=acme-plugin`)
+and setting the correct shasum in Vault (`vault write sys/plugins/catalog/secret/acme sha_256=$(sha256sum vault-plugin-secrets-acme | cut -d" " -f1) command=vault-plugin-secrets-acme`)
 you can mount the plugin like any other: `vault secrets enable -path acme -plugin-name acme plugin`.
 
 
