@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/go-acme/lego/v5/challenge/tlsalpn01"
@@ -136,7 +137,7 @@ func (p tlsALPN01Provider) Listen(addr string) error {
 	tlsConfig := &tls.Config{
 		NextProtos: []string{"acme-tls/1"},
 		GetCertificate: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
-			path := fmt.Sprintf("challenges/tls-alpn-01/%s", hello.ServerName)
+			path := fmt.Sprintf("challenges/tls-alpn-01/%s", extractAddressFromReverse(hello.ServerName))
 
 			s, err := p.client.Read(path)
 			if err != nil {
@@ -177,4 +178,71 @@ func (p tlsALPN01Provider) Listen(addr string) error {
 	}()
 
 	return nil
+}
+
+const (
+	ipv4ReverseSuffix = ".in-addr.arpa"
+	ipv6ReverseSuffix = ".ip6.arpa"
+)
+
+// extractAddressFromReverse turns the reverse-DNS form of an address back
+// into the address itself. Validating an IP identifier (RFC 8738) over
+// TLS-ALPN-01 (RFC 8737 section 4), an ACME server sends the reverse name of
+// the address as the SNI - "1.0.0.10.in-addr.arpa" for 10.0.0.1, or the
+// nibble form under ".ip6.arpa" for an IPv6 address - while the engine stores
+// the challenge under the address itself. Anything that is not a reverse
+// name, and anything that is one but does not decode to an address, is
+// returned unchanged, so a domain reaches storage as itself and a malformed
+// name fails the lookup it was always going to fail.
+//
+// The decoding follows Boostport/vault-plugin-secrets-acme commit 9dcb44d.
+func extractAddressFromReverse(name string) string {
+	// The reverse name is a fully qualified one, and DNS names are compared
+	// without regard to case.
+	trimmed := strings.ToLower(strings.TrimSuffix(name, "."))
+
+	var ip net.IP
+	switch {
+	case strings.HasSuffix(trimmed, ipv4ReverseSuffix):
+		ip = addressFromReverseIPv4(strings.TrimSuffix(trimmed, ipv4ReverseSuffix))
+	case strings.HasSuffix(trimmed, ipv6ReverseSuffix):
+		ip = addressFromReverseIPv6(strings.TrimSuffix(trimmed, ipv6ReverseSuffix))
+	default:
+		return name
+	}
+	if ip == nil {
+		return name
+	}
+
+	return ip.String()
+}
+
+// addressFromReverseIPv4 reads the four octets of an IPv4 address from the
+// labels of its "in-addr.arpa" name, which hold them least significant first.
+func addressFromReverseIPv4(labels string) net.IP {
+	octets := strings.Split(labels, ".")
+	if len(octets) != net.IPv4len {
+		return nil
+	}
+	slices.Reverse(octets)
+
+	return net.ParseIP(strings.Join(octets, "."))
+}
+
+// addressFromReverseIPv6 reads the sixteen bytes of an IPv6 address from the
+// labels of its "ip6.arpa" name, which hold one nibble each, least
+// significant first (RFC 3596 section 2.5).
+func addressFromReverseIPv6(labels string) net.IP {
+	nibbles := strings.Split(labels, ".")
+	if len(nibbles) != 2*net.IPv6len {
+		return nil
+	}
+	slices.Reverse(nibbles)
+
+	groups := make([]string, 0, net.IPv6len/2)
+	for i := 0; i < len(nibbles); i += 4 {
+		groups = append(groups, strings.Join(nibbles[i:i+4], ""))
+	}
+
+	return net.ParseIP(strings.Join(groups, ":"))
 }

@@ -89,6 +89,7 @@ This endpoint creates or updates a role definition.
 - `allowed_domains` `(list: [])` - A list of domains the role will be able to deliver certificates for.
 - `allow_bare_domains` `(bool: false)` - Whether to accept a request for a certificate that match an allowed domain exactly.
 - `allow_subdomains` `(bool: false)` - Whether to accept a request for a certificate containing a subdomain of an allowed domain.
+- `allow_ip_sans` `(bool: false)` - Whether to accept a request for a certificate for an IP address. Addresses are identifiers of their own kind ([RFC 8738](https://www.rfc-editor.org/rfc/rfc8738.html)) and are never matched against `allowed_domains`, so a role that says nothing about them refuses them.
 - `disable_cache` `(bool: false)` - Whether to disable the cache.
 - `cache_for_ratio` `(int: 70)` - For how long a cached cert should be used, e.g. a value of 70 means that a cached certificate will be used until 70% of its lifetime has passed, then a new certificate will be requested. Keep this below the point at which consumers rotate: a consumer handed a certificate it already considers due for rotation will request another one, be given the same cached certificate, and retry until the entry is finally dropped. Where that point falls depends on the consumer — consul-template's `pkiCert` rotates at 90% of the lifetime by default — so only a value of 100, which serves a certificate for the whole of its lifetime, returns a warning.
 - `revoke_on_lease_expiry` `(bool: false)` - Whether to revoke the certificate at the ACME provider once the last lease on it is revoked or expires. Off by default, because a lease ending is not on its own evidence that the certificate has stopped being used. Read when the lease is revoked rather than when the certificate is issued, so it also applies to leases that are already outstanding.
@@ -137,6 +138,12 @@ on the request and the role definition.
 - `pkcs12_password` `(string: "changeit")` - Password for the PKCS#12 archive. The default is the conventional one and is not a secret; set a real password.
 - `jks_password` `(string: "changeit")` - Password for the JKS archive, guarding both the keystore and the key entry within it. The default is the conventional one and is not a secret.
 - `jks_private_key_alias` `(string: "1")` - Alias of the private key entry in the JKS archive. Case is preserved.
+
+`common_name` and `alternative_names` accept IP addresses as well as domain
+names where the role has `allow_ip_sans` set; an address is requested as an
+`ip` identifier and lands in the certificate's IP Subject Alternative Names. An
+address can only be validated by connecting to it, so `http-01` and
+`tls-alpn-01` work for one and `dns-01` does not.
 
 ### Response
 

@@ -6,7 +6,10 @@ package acme
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"strings"
@@ -76,6 +79,49 @@ func TestValidateNames(t *testing.T) {
 			R:        role{Account: "account", AllowedDomains: []string{"lenstra.fr"}, AllowBareDomains: true, AllowSubdomains: true},
 			Domain:   []string{"sentry.lenstra.fr", "foobar.fr"},
 			Expected: "'foobar.fr' is not an allowed domain",
+		},
+		// An address is never matched against allowed_domains: the role's own
+		// flag is the whole of the answer.
+		{
+			R:        role{Account: "account", AllowedDomains: []string{"lenstra.fr"}, AllowBareDomains: true, AllowSubdomains: true},
+			Domain:   []string{"10.0.0.1"},
+			Expected: "'10.0.0.1' is an IP address and the role does not allow IP SANs",
+		},
+		{
+			R:        role{Account: "account", AllowedDomains: []string{"lenstra.fr"}, AllowBareDomains: true, AllowSubdomains: true, AllowIPSANs: true},
+			Domain:   []string{"10.0.0.1"},
+			Expected: "",
+		},
+		{
+			R:        role{Account: "account", AllowedDomains: []string{}, AllowIPSANs: true},
+			Domain:   []string{"127.0.0.1"},
+			Expected: "",
+		},
+		{
+			R:        role{Account: "account", AllowedDomains: []string{}, AllowIPSANs: true},
+			Domain:   []string{"2001:db8::1"},
+			Expected: "",
+		},
+		{
+			R:        role{Account: "account", AllowedDomains: []string{}},
+			Domain:   []string{"2001:db8::1"},
+			Expected: "'2001:db8::1' is an IP address and the role does not allow IP SANs",
+		},
+		{
+			R:        role{Account: "account", AllowedDomains: []string{"lenstra.fr"}, AllowSubdomains: true, AllowIPSANs: true},
+			Domain:   []string{"sentry.lenstra.fr", "10.0.0.1"},
+			Expected: "",
+		},
+		{
+			R:        role{Account: "account", AllowedDomains: []string{"lenstra.fr"}, AllowSubdomains: true},
+			Domain:   []string{"sentry.lenstra.fr", "10.0.0.1"},
+			Expected: "'10.0.0.1' is an IP address and the role does not allow IP SANs",
+		},
+		// Allowing addresses says nothing about names.
+		{
+			R:        role{Account: "account", AllowedDomains: []string{"lenstra.fr"}, AllowIPSANs: true},
+			Domain:   []string{"sentry.lenstra.fr"},
+			Expected: "'sentry.lenstra.fr' is not an allowed domain",
 		},
 	}
 
@@ -295,6 +341,69 @@ func TestHTTP01Challenge(t *testing.T) {
 		},
 	}
 	makeRequest(t, b, req, "")
+
+	// An IP identifier (RFC 8738) is validated by connecting to the address
+	// itself on the same port, so the provider already listening answers for
+	// it too. It has to be this one: the sidecar registers its handler on the
+	// default mux and the port is taken, so a second provider in this process
+	// would serve neither.
+	t.Run("IP address", func(t *testing.T) {
+		req := &logical.Request{
+			Operation: logical.CreateOperation,
+			Path:      "roles/loopback",
+			Storage:   config.StorageView,
+			Data: map[string]interface{}{
+				"account":       "lenstra",
+				"allow_ip_sans": true,
+			},
+		}
+		makeRequest(t, b, req, "")
+
+		req = &logical.Request{
+			Operation: logical.CreateOperation,
+			Path:      "certs/loopback",
+			Storage:   config.StorageView,
+			Data: map[string]interface{}{
+				"common_name": "127.0.0.1",
+			},
+		}
+		resp := makeRequest(t, b, req, "")
+
+		block, _ := pem.Decode([]byte(resp.Data["cert"].(string)))
+		require.NotNil(t, block, "response did not carry a PEM certificate")
+		cert, err := x509.ParseCertificate(block.Bytes)
+		require.NoError(t, err)
+
+		require.Len(t, cert.IPAddresses, 1)
+		require.True(t, cert.IPAddresses[0].Equal(net.ParseIP("127.0.0.1")), "got %s", cert.IPAddresses[0])
+		require.Empty(t, cert.DNSNames)
+	})
+}
+
+// The role has to say so before an address is accepted, and the request is
+// refused before anything is asked of the ACME provider.
+func TestIPIdentifierNeedsAllowIPSANs(t *testing.T) {
+	config, b := getTestBackend(t)
+
+	req := &logical.Request{
+		Operation: logical.CreateOperation,
+		Path:      "roles/loopback",
+		Storage:   config.StorageView,
+		Data: map[string]interface{}{
+			"account": "lenstra",
+		},
+	}
+	makeRequest(t, b, req, "")
+
+	req = &logical.Request{
+		Operation: logical.CreateOperation,
+		Path:      "certs/loopback",
+		Storage:   config.StorageView,
+		Data: map[string]interface{}{
+			"common_name": "127.0.0.1",
+		},
+	}
+	makeRequest(t, b, req, "'127.0.0.1' is an IP address and the role does not allow IP SANs")
 }
 
 func TestTLSALPN01Challenge(t *testing.T) {
@@ -344,31 +453,35 @@ func TestRoles(t *testing.T) {
 	}{
 		{
 			RequestData:      map[string]interface{}{"account": "lenstra"},
-			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": false, "allowed_domains": []string{}, "cache_for_ratio": 70, "disable_cache": false, "revoke_on_lease_expiry": false, "key_type": "RSA2048"},
+			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_ip_sans": false, "allow_bare_domains": false, "allow_subdomains": false, "allowed_domains": []string{}, "cache_for_ratio": 70, "disable_cache": false, "revoke_on_lease_expiry": false, "key_type": "RSA2048"},
 		},
 		{
 			RequestData:      map[string]interface{}{"account": "lenstra", "allowed_domains": "sentry.lenstra.fr"},
-			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": false, "allowed_domains": []string{"sentry.lenstra.fr"}, "cache_for_ratio": 70, "disable_cache": false, "revoke_on_lease_expiry": false, "key_type": "RSA2048"},
+			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_ip_sans": false, "allow_bare_domains": false, "allow_subdomains": false, "allowed_domains": []string{"sentry.lenstra.fr"}, "cache_for_ratio": 70, "disable_cache": false, "revoke_on_lease_expiry": false, "key_type": "RSA2048"},
 		},
 		{
-			RequestData:      map[string]interface{}{"account": "lenstra", "allow_bare_domains": true},
-			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": true, "allow_subdomains": false, "allowed_domains": []string{}, "cache_for_ratio": 70, "disable_cache": false, "revoke_on_lease_expiry": false, "key_type": "RSA2048"},
+			RequestData:      map[string]interface{}{"account": "lenstra", "allow_ip_sans": false, "allow_bare_domains": true},
+			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_ip_sans": false, "allow_bare_domains": true, "allow_subdomains": false, "allowed_domains": []string{}, "cache_for_ratio": 70, "disable_cache": false, "revoke_on_lease_expiry": false, "key_type": "RSA2048"},
 		},
 		{
 			RequestData:      map[string]interface{}{"account": "lenstra", "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "cache_for_ratio": 50},
-			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "cache_for_ratio": 50, "disable_cache": false, "revoke_on_lease_expiry": false, "key_type": "RSA2048"},
+			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_ip_sans": false, "allow_bare_domains": false, "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "cache_for_ratio": 50, "disable_cache": false, "revoke_on_lease_expiry": false, "key_type": "RSA2048"},
 		},
 		{
 			RequestData:      map[string]interface{}{"account": "lenstra", "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "disable_cache": true},
-			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "cache_for_ratio": 70, "disable_cache": true, "revoke_on_lease_expiry": false, "key_type": "RSA2048"},
+			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_ip_sans": false, "allow_bare_domains": false, "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "cache_for_ratio": 70, "disable_cache": true, "revoke_on_lease_expiry": false, "key_type": "RSA2048"},
 		},
 		{
 			RequestData:      map[string]interface{}{"account": "lenstra", "key_type": "EC256"},
-			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": false, "allowed_domains": []string{}, "cache_for_ratio": 70, "disable_cache": false, "revoke_on_lease_expiry": false, "key_type": "EC256"},
+			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_ip_sans": false, "allow_bare_domains": false, "allow_subdomains": false, "allowed_domains": []string{}, "cache_for_ratio": 70, "disable_cache": false, "revoke_on_lease_expiry": false, "key_type": "EC256"},
 		},
 		{
 			RequestData:      map[string]interface{}{"account": "lenstra", "revoke_on_lease_expiry": true},
-			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": false, "allowed_domains": []string{}, "cache_for_ratio": 70, "disable_cache": false, "revoke_on_lease_expiry": true, "key_type": "RSA2048"},
+			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_ip_sans": false, "allow_bare_domains": false, "allow_subdomains": false, "allowed_domains": []string{}, "cache_for_ratio": 70, "disable_cache": false, "revoke_on_lease_expiry": true, "key_type": "RSA2048"},
+		},
+		{
+			RequestData:      map[string]interface{}{"account": "lenstra", "allow_ip_sans": true},
+			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_ip_sans": true, "allow_bare_domains": false, "allow_subdomains": false, "allowed_domains": []string{}, "cache_for_ratio": 70, "disable_cache": false, "revoke_on_lease_expiry": false, "key_type": "RSA2048"},
 		},
 	}
 	for _, tcase := range testCases {
@@ -406,6 +519,7 @@ func TestRoles(t *testing.T) {
 		resp.Data,
 		map[string]interface{}{
 			"account":                "lenstra",
+			"allow_ip_sans":          false,
 			"allow_bare_domains":     false,
 			"allow_subdomains":       true,
 			"allowed_domains":        []string{"lenstra.fr"},

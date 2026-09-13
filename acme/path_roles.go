@@ -44,6 +44,10 @@ func pathRoles(b *backend) []*framework.Path {
 				"allow_subdomains": {
 					Type: framework.TypeBool,
 				},
+				"allow_ip_sans": {
+					Type:        framework.TypeBool,
+					Description: "Allow IP addresses to be requested as names. Off by default: allowed_domains says nothing about addresses, so a role has to opt in before one is accepted.",
+				},
 				"disable_cache": {
 					Type: framework.TypeBool,
 				},
@@ -108,6 +112,7 @@ func (b *backend) roleCreateOrUpdate(ctx context.Context, req *logical.Request, 
 		AllowedDomains:      data.Get("allowed_domains").([]string),
 		AllowBareDomains:    data.Get("allow_bare_domains").(bool),
 		AllowSubdomains:     data.Get("allow_subdomains").(bool),
+		AllowIPSANs:         data.Get("allow_ip_sans").(bool),
 		DisableCache:        data.Get("disable_cache").(bool),
 		CacheForRatio:       cacheForRatio,
 		RevokeOnLeaseExpiry: data.Get("revoke_on_lease_expiry").(bool),
@@ -145,6 +150,7 @@ func (b *backend) roleRead(ctx context.Context, req *logical.Request, _ *framewo
 			"allowed_domains":        r.AllowedDomains,
 			"allow_bare_domains":     r.AllowBareDomains,
 			"allow_subdomains":       r.AllowSubdomains,
+			"allow_ip_sans":          r.AllowIPSANs,
 			"disable_cache":          r.DisableCache,
 			"cache_for_ratio":        r.CacheForRatio,
 			"revoke_on_lease_expiry": r.RevokeOnLeaseExpiry,
@@ -179,6 +185,10 @@ type role struct {
 	// mapstructure ignores json tags, so the field still round-trips through
 	// storage in save/getRole.
 	RevokeOnLeaseExpiry bool `json:"-"`
+	// Kept out of the JSON encoding for the same reason: which names a role
+	// will accept is a policy question, and answering it differently must not
+	// invalidate the certificates already cached under the role.
+	AllowIPSANs bool `json:"-"`
 	// The key type does change the certificate, so it belongs in the hash;
 	// omitempty keeps roles that never set it, and roles set to the default,
 	// on the cache keys they had before the field existed.

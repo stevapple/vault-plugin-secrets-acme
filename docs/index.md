@@ -44,6 +44,14 @@ The ACME secret engine supports the following challenges:
   of the domain. This challenge is also supported by the ACME secret backend
   using the [Vault ACME sidecar](sidecar.md).
 
+A certificate can also be requested for an IP address rather than a domain name
+where the ACME provider issues them, as described in
+[RFC 8738](https://www.rfc-editor.org/rfc/rfc8738.html). An address is an
+identifier of its own kind and is not matched against the role's
+`allowed_domains`, so the role has to set `allow_ip_sans` before one is
+accepted in `common_name` or `alternative_names`. The provider validates an
+address by connecting to it, which the HTTP-01 and TLS-ALPN-01 challenges do
+and the DNS-01 challenge, having no name to look up, cannot.
 
 ## Setup
 
