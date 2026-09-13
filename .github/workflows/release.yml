@@ -15,6 +15,12 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v7
+      with:
+        # goreleaser writes the release notes from the commits between the
+        # previous tag and this one, and needs the tags and their history to
+        # find them; a shallow clone hides both, and the v0.4.0 run resolved
+        # the previous tag as "<unknown>".
+        fetch-depth: 0
     - name: Set up Go
       uses: actions/setup-go@v7
       with:
