@@ -12,6 +12,12 @@ import (
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
+// At 100 a cached certificate is served for the whole of its lifetime, so the
+// last request before it drops out of the cache receives one with no usable
+// life left. Where a consumer rotates below that is its own business and not
+// something the engine can know, so this warns rather than refuses.
+const cacheForRatioServesUntilExpiry = 100
+
 func pathRoles(b *backend) []*framework.Path {
 	return []*framework.Path{
 		{
@@ -92,7 +98,18 @@ func (b *backend) roleCreateOrUpdate(ctx context.Context, req *logical.Request, 
 		return nil, err
 	}
 
-	return b.roleRead(ctx, req, data)
+	resp, err := b.roleRead(ctx, req, data)
+	if err != nil {
+		return nil, err
+	}
+	if resp != nil && cacheForRatio >= cacheForRatioServesUntilExpiry {
+		resp.AddWarning(
+			"cache_for_ratio of 100 serves a cached certificate for the whole of its lifetime, so a request " +
+				"arriving just before the entry is dropped receives one that has expired or is about to. " +
+				"Leave room for whatever renewal window the consumers of this role need.")
+	}
+
+	return resp, nil
 }
 
 func (b *backend) roleRead(ctx context.Context, req *logical.Request, _ *framework.FieldData) (*logical.Response, error) {

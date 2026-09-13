@@ -138,10 +138,10 @@ func (c *Cache) Read(ctx context.Context, storage logical.Storage, role *role, k
 		}
 
 		notAfter := certs[0].NotAfter
-		certTTL := notAfter.Sub(certs[0].NotBefore).Seconds()
-		remaining := time.Until(notAfter).Seconds()
+		lifetime := notAfter.Sub(certs[0].NotBefore).Seconds()
+		used := lifetime - time.Until(notAfter).Seconds()
 
-		if remaining < float64(role.CacheForRatio)*certTTL/100 {
+		if used >= float64(role.CacheForRatio)*lifetime/100 {
 			// We can drop this entry from the cache since it won't be used anymore
 			err = c.Delete(ctx, storage, key)
 			return nil, err
