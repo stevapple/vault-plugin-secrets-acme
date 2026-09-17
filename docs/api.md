@@ -14,7 +14,7 @@ update your API calls accordingly.
 * [List ACME accounts](#list-acme-accounts)
 * [Read ACME account](#read-acme-account)
 * [Delete ACME account](#delete-acme-account)
-* [Create/Update Role](#create-update-role)
+* [Create/Update Role](#createupdate-role)
 * [List Roles](#list-roles)
 * [Read Role](#read-role)
 * [Delete Role](#delete-role)

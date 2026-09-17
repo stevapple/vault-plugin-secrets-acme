@@ -5,32 +5,45 @@ challenge, credentials to access and update the DNS records must be configured.
 Set the account's `provider` to the code name shown in parentheses after each
 provider, and pass the credentials in `provider_configuration`.
 
-~> **WARNING:** The DNS-01 challenge for a given domain requires to update the
-   TXT record at `_acme-challenge.<YOUR_DOMAIN>`. If your DNS provider supports it, use
-   credentials with permissions restricted to these records to improve security.
+> [!WARNING]
+> The DNS-01 challenge for a given domain requires to update the TXT record at
+> `_acme-challenge.<YOUR_DOMAIN>`. If your DNS provider supports it, use
+> credentials with permissions restricted to these records to improve security.
 
+<!--
+The rest of this file was produced from the lego v5.4.1 documentation under MIT
+license with the following program, run in lego's checkout:
 
-[//]: # (The rest of this file was produced from the lego v5.4.1 documentation under MIT license)
-[//]: # (with the following program, run in lego's checkout:)
-[//]: # (for provider in sorted(glob('./providers/dns/**/*.toml', recursive=True)):)
-[//]: # (    with open(provider, 'rb') as f:)
-[//]: # (        data = tomllib.load(f))
-[//]: # (    print(f"## {data['Name']} (`{data['Code']}`)"))
-[//]: # (    if data.get('Description', '').strip():)
-[//]: # (        print(data['Description'].strip()))
-[//]: # (    if 'Additional' in data:)
-[//]: # (        print(data['Additional'].strip().replace('##', '###')))
-[//]: # (    conf = data.get('Configuration', {}))
-[//]: # (    if 'Credentials' in conf:)
-[//]: # (        print('### Credentials'))
-[//]: # (        for k, v in conf['Credentials'].items():)
-[//]: # (            print(f"  - `{k}`: {v}"))
-[//]: # (    if 'Additional' in conf:)
-[//]: # (        print('\n### Additional configuration'))
-[//]: # (        for k, v in conf['Additional'].items():)
-[//]: # (            print(f"  - `{k}`: {v}"))
-[//]: # (    print())
-[//]: # (    print())
+import re
+import tomllib
+from glob import glob
+
+def notices_to_alerts(text):
+    def alert(m):
+        lines = m.group(2).strip().splitlines()
+        return '\n'.join([f'> [!{m.group(1).upper()}]'] + [f'> {l}'.rstrip() for l in lines])
+    return re.sub(r'\{\{% notice (?:style=)?"?(\w+)"? %\}\}(.*?)\{\{% /notice %\}\}', alert, text, flags=re.S)
+
+for provider in sorted(glob('./providers/dns/**/*.toml', recursive=True)):
+    with open(provider, 'rb') as f:
+        data = tomllib.load(f)
+    print(f"## {data['Name']} (`{data['Code']}`)")
+    if data.get('Description', '').strip():
+        print(notices_to_alerts(data['Description'].strip()))
+    if 'Additional' in data:
+        print(notices_to_alerts(data['Additional'].strip().replace('##', '###')))
+    conf = data.get('Configuration', {})
+    if 'Credentials' in conf:
+        print('### Credentials')
+        for k, v in conf['Credentials'].items():
+            print(f"  - `{k}`: {v}")
+    if 'Additional' in conf:
+        print('\n### Additional configuration')
+        for k, v in conf['Additional'].items():
+            print(f"  - `{k}`: {v}")
+    print()
+    print()
+-->
 
 ## Abion (`abion`)
 ### Credentials
@@ -1287,11 +1300,10 @@ It will then call the program `./update-dns.sh` like this:
 
 ### Commands
 
-{{% notice note %}}
-The `--` is because the token MAY start with a `-`, and the called program may try and interpret a `-` as indicating a flag.
-In the case of urfave, which is commonly used,
-you can use the `--` delimiter to specify the start of positional arguments, and handle such a string safely.
-{{% /notice %}}
+> [!NOTE]
+> The `--` is because the token MAY start with a `-`, and the called program may try and interpret a `-` as indicating a flag.
+> In the case of urfave, which is commonly used,
+> you can use the `--` delimiter to specify the start of positional arguments, and handle such a string safely.
 
 #### Present
 
@@ -2517,11 +2529,8 @@ You can find information about service ID and secret https://www.nic.ru/manager/
 
 
 ## Openprovider (`openprovider`)
-{{% notice style="warning" %}}
-
-The provider is only available for resellers because the Openprovider API is only available for resellers.
-
-{{% /notice %}}
+> [!WARNING]
+> The provider is only available for resellers because the Openprovider API is only available for resellers.
 ### Credentials
   - `OPENPROVIDER_USERNAME`: The user's name
   - `OPENPROVIDER_PASSWORD`: The user's password
