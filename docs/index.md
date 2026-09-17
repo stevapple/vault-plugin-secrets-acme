@@ -7,9 +7,11 @@ With this secrets engine, services can get certificates that can be presented to
 end users and that clients will accept. Currently only Let's Encrypt implement
 the ACME standard.
 
--> **NOTE:** The directory URLs in all examples in this provider reference Let's
-  Encrypt's staging server endpoint. For production use, change the directory
-  URLs to the production endpoints, which can be found [here](https://letsencrypt.org/docs/acme-protocol-updates/).
+> [!NOTE]
+> The directory URLs in all examples in this provider reference Let's Encrypt's
+> staging server endpoint. For production use, change the directory URLs to the
+> production endpoints, which can be found
+> [here](https://letsencrypt.org/docs/acme-protocol-updates/).
 
 ## Supported challenges
 
@@ -159,10 +161,11 @@ $ vault write acme/roles/lenstra.fr \
 Success! Data written to: acme/roles/lenstra.fr
 ```
 
--> **NOTE:** the setting is read when the lease is revoked rather than when the
-  certificate is issued, so turning it off also applies to leases that are
-  already outstanding. Certificates issued under a role that has since been
-  deleted are never revoked.
+> [!NOTE]
+> The setting is read when the lease is revoked rather than when the certificate
+> is issued, so turning it off also applies to leases that are already
+> outstanding. Certificates issued under a role that has since been deleted are
+> never revoked.
 
 To revoke a certificate outright — because it has been compromised, say —
 write to `acme/revoke` instead. That is independent of `revoke_on_lease_expiry`
@@ -215,10 +218,11 @@ Two settings decide whether this is safe:
   past that point reaches a consumer that already considers it due for
   replacement, which asks again and is handed the same one.
 
--> **NOTE:** the lease still exists and still expires, it is simply not what
-  drives renewal. It lasts as long as the certificate it carries, capped by the
-  mount's `max_lease_ttl`, so tune that to at least the certificate lifetime if
-  you want lease listings to stay meaningful.
+> [!NOTE]
+> The lease still exists and still expires, it is simply not what drives
+> renewal. It lasts as long as the certificate it carries, capped by the mount's
+> `max_lease_ttl`, so tune that to at least the certificate lifetime if you want
+> lease listings to stay meaningful.
 
 ## Keystore formats
 
@@ -255,10 +259,11 @@ The format names, their defaults, and the `changeit` password convention follow
 Vault's PKI engine, which has offered the same two formats since Vault 2.1.0,
 so a consumer can ask either engine for the same thing.
 
--> **NOTE:** the format is a property of the request, not of the certificate.
-  Asking for a different one returns the same cached certificate rendered
-  differently rather than ordering another from the ACME provider, so the
-  choice costs nothing against rate limits.
+> [!NOTE]
+> The format is a property of the request, not of the certificate. Asking for a
+> different one returns the same cached certificate rendered differently rather
+> than ordering another from the ACME provider, so the choice costs nothing
+> against rate limits.
 
 ## Quick Start
 
